@@ -8,6 +8,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { AppThemeProvider } from "@/contexts/app-theme-context";
+import { Toast } from "@/components/ui/toast";
 
 export const unstable_settings = {
   initialRouteName: "(drawer)",
@@ -19,6 +20,7 @@ function StackLayout() {
   return (
     <Stack screenOptions={{}}>
       <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
+      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       <Stack.Screen name="modal" options={{ title: "Modal", presentation: "modal" }} />
     </Stack>
@@ -40,6 +42,7 @@ export default function Layout() {
           <QueryClientProvider client={queryClient}>
             <HeroUINativeProvider>
               <StackLayout />
+              <Toast />
             </HeroUINativeProvider>
           </QueryClientProvider>
         </AppThemeProvider>

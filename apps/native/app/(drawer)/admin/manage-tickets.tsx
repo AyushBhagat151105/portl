@@ -1,6 +1,9 @@
 import React from "react";
 import { ManageTicketsView } from "@/components/society/manage-tickets-view";
+import { withRole } from "@/components/role-guard";
 
-export default function Page() {
+function Page() {
   return <ManageTicketsView />;
 }
+
+export default withRole(Page, "admin");

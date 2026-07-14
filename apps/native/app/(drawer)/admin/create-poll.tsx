@@ -1,6 +1,9 @@
 import React from "react";
 import { CreatePollView } from "@/components/society/create-poll-view";
+import { withRole } from "@/components/role-guard";
 
-export default function Page() {
+function Page() {
   return <CreatePollView />;
 }
+
+export default withRole(Page, "admin");

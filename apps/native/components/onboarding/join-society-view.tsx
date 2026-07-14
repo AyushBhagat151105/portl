@@ -1,10 +1,13 @@
-import React, { useState } from "react";
+import React from "react";
 import { Text, View, TextInput, Pressable, Alert, ActivityIndicator } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useJoinSocietyMutation } from "@/queries/society";
 import { useSocietyStore } from "@/store/useSocietyStore";
+import { joinSocietySchema, type JoinSocietyFormData } from "@/lib/form-schemas";
 
 const ROLES = [
   {
@@ -28,27 +31,32 @@ const ROLES = [
 ];
 
 export function JoinSocietyView() {
-  const [slug, setSlug] = useState("");
-  const [role, setRole] = useState<"resident" | "guard">("resident");
   const joinMutation = useJoinSocietyMutation();
   const { setRole: storeSetRole } = useSocietyStore();
 
-  const handleJoin = async () => {
-    if (!slug.trim()) {
-      Alert.alert("Error", "Please enter the society code");
-      return;
-    }
+  const { control, handleSubmit, watch, setValue } = useForm<JoinSocietyFormData>({
+    resolver: zodResolver(joinSocietySchema),
+    mode: "onTouched",
+    defaultValues: { slug: "", role: "resident" },
+  });
+
+  const selectedRole = watch("role");
+  const slugValue = watch("slug");
+
+  const onSubmit = async (data: JoinSocietyFormData) => {
     try {
-      await joinMutation.mutateAsync({ slug: slug.trim(), role });
-      storeSetRole(role);
-      // Navigate to appropriate dashboard
-      if (role === "guard") {
+      await joinMutation.mutateAsync({ slug: data.slug.trim(), role: data.role });
+      storeSetRole(data.role);
+      if (data.role === "guard") {
         router.replace("/(drawer)/guard/dashboard");
       } else {
         router.replace("/(drawer)/resident/dashboard");
       }
     } catch (err: any) {
-      Alert.alert("Error", err?.response?.data?.message || err?.message || "Failed to join society. Check the code and try again.");
+      Alert.alert(
+        "Error",
+        err?.response?.data?.message || err?.message || "Failed to join society. Check the code and try again.",
+      );
     }
   };
 
@@ -80,61 +88,74 @@ export function JoinSocietyView() {
         {/* Society Code */}
         <View className="gap-2">
           <Text className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Society Code</Text>
-          <TextInput
-            value={slug}
-            onChangeText={setSlug}
-            placeholder="e.g. sunshine-apts"
-            placeholderTextColor="#52525b"
-            autoCapitalize="none"
-            autoCorrect={false}
-            className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3.5 text-white text-sm font-mono"
+          <Controller
+            control={control}
+            name="slug"
+            render={({ field }) => (
+              <TextInput
+                value={field.value}
+                onChangeText={field.onChange}
+                onBlur={field.onBlur}
+                placeholder="e.g. sunshine-apts"
+                placeholderTextColor="#52525b"
+                autoCapitalize="none"
+                autoCorrect={false}
+                className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3.5 text-white text-sm font-mono"
+              />
+            )}
           />
         </View>
 
         {/* Role Selection */}
         <View className="gap-2">
           <Text className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">I am a…</Text>
-          <View className="gap-3">
-            {ROLES.map((r) => {
-              const active = role === r.key;
-              return (
-                <Pressable
-                  key={r.key}
-                  onPress={() => setRole(r.key)}
-                  className="flex-row items-center gap-4 p-4 rounded-xl border"
-                  style={{
-                    backgroundColor: active ? r.bg : "#18181b",
-                    borderColor: active ? r.border : "#27272a",
-                  }}
-                >
-                  <View
-                    className="w-10 h-10 rounded-lg items-center justify-center"
-                    style={{ backgroundColor: active ? r.bg : "#09090b" }}
-                  >
-                    <Ionicons name={r.icon as any} size={20} color={active ? r.color : "#52525b"} />
-                  </View>
-                  <View className="flex-1">
-                    <Text style={{ color: active ? r.color : "#a1a1aa", fontWeight: active ? "700" : "400" }} className="text-sm">
-                      {r.label}
-                    </Text>
-                    <Text className="text-zinc-600 text-xs mt-0.5">{r.description}</Text>
-                  </View>
-                  {active && (
-                    <Ionicons name="checkmark-circle" size={20} color={r.color} />
-                  )}
-                </Pressable>
-              );
-            })}
-          </View>
+          <Controller
+            control={control}
+            name="role"
+            render={({ field }) => (
+              <View className="gap-3">
+                {ROLES.map((r) => {
+                  const active = field.value === r.key;
+                  return (
+                    <Pressable
+                      key={r.key}
+                      onPress={() => field.onChange(r.key)}
+                      className="flex-row items-center gap-4 p-4 rounded-xl border"
+                      style={{
+                        backgroundColor: active ? r.bg : "#18181b",
+                        borderColor: active ? r.border : "#27272a",
+                      }}
+                    >
+                      <View
+                        className="w-10 h-10 rounded-lg items-center justify-center"
+                        style={{ backgroundColor: active ? r.bg : "#09090b" }}
+                      >
+                        <Ionicons name={r.icon as any} size={20} color={active ? r.color : "#52525b"} />
+                      </View>
+                      <View className="flex-1">
+                        <Text style={{ color: active ? r.color : "#a1a1aa", fontWeight: active ? "700" : "400" }} className="text-sm">
+                          {r.label}
+                        </Text>
+                        <Text className="text-zinc-600 text-xs mt-0.5">{r.description}</Text>
+                      </View>
+                      {active && (
+                        <Ionicons name="checkmark-circle" size={20} color={r.color} />
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+          />
         </View>
 
         <Pressable
-          onPress={handleJoin}
-          disabled={joinMutation.isPending || !slug.trim()}
+          onPress={handleSubmit(onSubmit)}
+          disabled={joinMutation.isPending || !slugValue}
           className="rounded-xl py-4 items-center mt-2"
           style={{
-            backgroundColor: role === "guard" ? "#38bdf8" : "#f59e0b",
-            opacity: joinMutation.isPending || !slug.trim() ? 0.6 : 1,
+            backgroundColor: selectedRole === "guard" ? "#38bdf8" : "#f59e0b",
+            opacity: joinMutation.isPending || !slugValue ? 0.6 : 1,
           }}
         >
           {joinMutation.isPending ? (

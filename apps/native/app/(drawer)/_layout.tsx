@@ -7,54 +7,29 @@ import { authClient } from "@/lib/auth-client";
 import { useSocietyStore } from "@/store/useSocietyStore";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { router } from "expo-router";
+import { useAppTheme } from "@/contexts/app-theme-context";
 
 function CustomDrawerContent(props: any) {
   const { currentRole, setRole } = useSocietyStore();
   const { data: session } = authClient.useSession();
-  
-  const themeColorForeground = useThemeColor("foreground");
-  const themeColorMuted = useThemeColor("muted");
+  const { isLight } = useAppTheme();
 
   return (
-    <DrawerContentScrollView {...props} contentContainerStyle={{ flex: 1, backgroundColor: "#09090b" }}>
+    <DrawerContentScrollView 
+      {...props} 
+      contentContainerStyle={{ 
+        flex: 1, 
+        backgroundColor: isLight ? "#fcfbf9" : "#1c1917" 
+      }}
+    >
       {/* 1. Header Profile block */}
-      <View className="px-5 py-6 border-b border-zinc-900 mb-4 bg-zinc-900/30">
-        <Text className="text-white text-lg font-bold">{session?.user?.name || "Portl User"}</Text>
-        <Text className="text-zinc-500 text-xs mt-1">{session?.user?.email || "user@portl.com"}</Text>
-        
-        {/* Development mode switcher inside drawer */}
-        <View className="mt-4 bg-zinc-950 p-2.5 rounded-xl border border-zinc-800">
-          <Text className="text-zinc-500 text-xxs uppercase tracking-wider font-semibold mb-2">Role Perspective</Text>
-          <View className="flex-row gap-1.5">
-            {(["resident", "guard", "admin"] as const).map((r) => {
-              const active = currentRole === r;
-              return (
-                <Pressable
-                  key={r}
-                  onPress={() => {
-                    setRole(r);
-                    props.navigation.closeDrawer();
-                  }}
-                  className="flex-1 py-1.5 rounded-md items-center justify-center border"
-                  style={{
-                    backgroundColor: active ? "rgba(245, 158, 11, 0.1)" : "#09090b",
-                    borderColor: active ? "#f59e0b" : "#27272a",
-                  }}
-                >
-                  <Text
-                    className="text-xxs capitalize"
-                    style={{
-                      color: active ? "#f59e0b" : "#a1a1aa",
-                      fontWeight: active ? "600" : "400",
-                    }}
-                  >
-                    {r}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
+      <View className="px-5 py-6 border-b border-border-light dark:border-border-dark mb-4 bg-muted-light/20 dark:bg-muted-dark/20">
+        <Text className="text-foreground-light dark:text-foreground-dark text-lg font-bold">
+          {session?.user?.name || "Portl User"}
+        </Text>
+        <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs mt-1">
+          {session?.user?.email || "user@portl.com"}
+        </Text>
       </View>
 
       {/* 2. Menu Navigation Links List */}
@@ -63,11 +38,11 @@ function CustomDrawerContent(props: any) {
       </View>
 
       {/* 3. Footer Logout block */}
-      <View className="p-5 border-t border-zinc-900 bg-zinc-900/20 flex-row justify-between items-center">
+      <View className="p-5 border-t border-border-light dark:border-border-dark bg-muted-light/10 dark:bg-muted-dark/10 flex-row justify-between items-center">
         <ThemeToggle />
         <Pressable
           onPress={() => authClient.signOut()}
-          className="bg-zinc-950 border border-zinc-800 py-2 px-4 rounded-xl active:opacity-75"
+          className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark py-2 px-4 rounded-xl active:opacity-75"
         >
           <Text className="text-rose-500 text-xs font-semibold">Sign Out</Text>
         </Pressable>
@@ -78,8 +53,7 @@ function CustomDrawerContent(props: any) {
 
 export default function DrawerLayout() {
   const { currentRole } = useSocietyStore();
-  const themeColorForeground = useThemeColor("foreground");
-  const themeColorBackground = useThemeColor("background");
+  const { isLight } = useAppTheme();
   const { data: session, isPending } = authClient.useSession();
 
   React.useEffect(() => {
@@ -90,7 +64,7 @@ export default function DrawerLayout() {
 
   if (isPending) {
     return (
-      <View className="flex-1 bg-zinc-950 items-center justify-center">
+      <View className="flex-1 bg-zinc-950 dark:bg-zinc-50 items-center justify-center">
         <ActivityIndicator size="large" color="#f59e0b" />
       </View>
     );
@@ -100,19 +74,25 @@ export default function DrawerLayout() {
     return null;
   }
 
+  const bgColor = isLight ? "#fcfbf9" : "#1c1917";
+  const fgColor = isLight ? "#4a3b33" : "#f5f5f4";
+  const borderColor = isLight ? "#e8e5dc" : "#44403c";
+  const inactiveTintColor = isLight ? "#78716c" : "#a8a29e";
+  const activeTintColor = isLight ? "#b45309" : "#f97316";
+
   return (
     <Drawer
       drawerContent={(props) => <CustomDrawerContent {...props} />}
       screenOptions={{
-        headerTintColor: themeColorForeground,
-        headerStyle: { backgroundColor: "#09090b", borderBottomWidth: 1, borderBottomColor: "#18181b" },
+        headerTintColor: fgColor,
+        headerStyle: { backgroundColor: bgColor, borderBottomWidth: 1, borderBottomColor: borderColor },
         headerTitleStyle: {
           fontWeight: "700",
-          color: "#ffffff",
+          color: fgColor,
         },
-        drawerStyle: { backgroundColor: "#09090b" },
-        drawerActiveTintColor: "#f59e0b",
-        drawerInactiveTintColor: "#a1a1aa",
+        drawerStyle: { backgroundColor: bgColor },
+        drawerActiveTintColor: activeTintColor,
+        drawerInactiveTintColor: inactiveTintColor,
         drawerLabelStyle: { fontSize: 13, fontWeight: "600" },
       }}
     >
@@ -156,7 +136,7 @@ export default function DrawerLayout() {
         options={{
           headerTitle: "Book Amenity",
           drawerLabel: "Amenities Scheduler",
-          drawerItemStyle: { display: currentRole === "resident" ? "flex" : "none" },
+          drawerItemStyle: { display: currentRole === "resident" || currentRole === "admin" ? "flex" : "none" },
           drawerIcon: ({ size, color }) => <Ionicons name="calendar-outline" size={size} color={color} />,
         }}
       />
@@ -273,12 +253,29 @@ export default function DrawerLayout() {
         }}
       />
       <Drawer.Screen
+        name="admin/manage-structure"
+        options={{
+          headerTitle: "Manage Structure",
+          drawerLabel: "Modify Towers & Flats",
+          drawerItemStyle: { display: currentRole === "admin" ? "flex" : "none" },
+          drawerIcon: ({ size, color }) => <Ionicons name="grid-outline" size={size} color={color} />,
+        }}
+      />
+      <Drawer.Screen
         name="admin/manage-staff"
         options={{
           headerTitle: "Manage Staff",
           drawerLabel: "Staff Directory Manager",
           drawerItemStyle: { display: currentRole === "admin" ? "flex" : "none" },
           drawerIcon: ({ size, color }) => <Ionicons name="id-card-outline" size={size} color={color} />,
+        }}
+      />
+      <Drawer.Screen
+        name="settings"
+        options={{
+          headerTitle: "Settings",
+          drawerLabel: "Account Settings",
+          drawerIcon: ({ size, color }) => <Ionicons name="settings-outline" size={size} color={color} />,
         }}
       />
     </Drawer>

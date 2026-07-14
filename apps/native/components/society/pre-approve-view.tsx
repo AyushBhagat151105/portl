@@ -1,69 +1,74 @@
-import React, { useState } from "react";
-import { Text, View, Pressable, TextInput, Alert, ActivityIndicator } from "react-native";
+import React from "react";
+import { Text, View, Pressable, TextInput, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { FieldError } from "heroui-native";
 import { usePreApproveGuestMutation, useMyFlatsQuery } from "../../queries/society";
+import { useToastStore } from "../../store/useToastStore";
+import { ScreenContainer } from "../ui/screen-container";
+import { Card } from "../ui/card";
+import { preApproveGuestSchema, type PreApproveGuestFormData } from "@/lib/form-schemas";
 
 export function PreApproveView() {
   const { data: flats } = useMyFlatsQuery();
   const preApproveMutation = usePreApproveGuestMutation();
+  const { showToast } = useToastStore();
 
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [purpose, setPurpose] = useState("");
-  const [flatId, setFlatId] = useState("");
-  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
+  const [generatedCode, setGeneratedCode] = React.useState<string | null>(null);
+
+  const { control, handleSubmit, reset, setValue, formState: { errors } } = useForm<PreApproveGuestFormData>({
+    resolver: zodResolver(preApproveGuestSchema),
+    mode: "onTouched",
+    defaultValues: { name: "", phone: "", purpose: "", flatId: "" },
+  });
 
   React.useEffect(() => {
-    if (flats && flats.length > 0 && !flatId) {
-      setFlatId(flats[0].id);
+    if (flats && flats.length > 0) {
+      setValue("flatId", flats[0].id);
     }
-  }, [flats]);
+  }, [flats, setValue]);
 
-  const handlePreApprove = async () => {
-    if (!name || !phone || !flatId) {
-      Alert.alert("Error", "Please fill in all required fields");
-      return;
-    }
-
+  const onSubmit = async (data: PreApproveGuestFormData) => {
     try {
       const visitor = await preApproveMutation.mutateAsync({
-        name,
-        phone,
-        purpose,
-        flatId,
+        name: data.name,
+        phone: data.phone,
+        purpose: data.purpose,
+        flatId: data.flatId,
       });
       setGeneratedCode(visitor.preApprovedCode);
-      setName("");
-      setPhone("");
-      setPurpose("");
+      showToast("Guest invitation code generated successfully!", "success");
+      reset({ name: "", phone: "", purpose: "" });
     } catch (err: any) {
-      Alert.alert("Error", err.message || "Failed to generate pass");
+      showToast(err.message || "Failed to generate pass", "error");
     }
   };
 
   return (
-    <KeyboardAwareScrollView
-      className="flex-1 bg-zinc-950 px-6 py-4"
-      contentContainerStyle={{ paddingBottom: 40 }}
-      keyboardShouldPersistTaps="handled"
-    >
-      <View className="bg-zinc-900 border border-zinc-800 p-5 rounded-2xl">
-        <Text className="text-white text-xl font-bold mb-4">Pre-Approve a Guest</Text>
+    <ScreenContainer contentContainerStyle={{ padding: 24 }}>
+      <Card>
+        <Text className="text-foreground-light dark:text-foreground-dark text-xl font-bold mb-4">
+          Pre-Approve a Guest
+        </Text>
 
         {generatedCode ? (
           <View className="items-center py-6">
             <Ionicons name="checkmark-circle-outline" size={48} color="#10b981" />
-            <Text className="text-zinc-300 text-sm mt-3 mb-1">Share this 6-digit passcode with your guest:</Text>
-            <View className="bg-zinc-950 border border-amber-500/30 px-6 py-4 rounded-xl mt-2 mb-4">
-              <Text className="text-amber-500 text-3xl font-extrabold tracking-widest">{generatedCode}</Text>
+            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-sm mt-3 mb-1">
+              Share this 6-digit passcode with your guest:
+            </Text>
+            <View className="bg-muted-light dark:bg-muted-dark border border-primary-light/30 dark:border-primary-dark/30 px-6 py-4 rounded-xl mt-2 mb-4">
+              <Text className="text-primary-light dark:text-primary-dark text-3xl font-extrabold tracking-widest">
+                {generatedCode}
+              </Text>
             </View>
-            <Text className="text-zinc-500 text-xs text-center px-4 mb-4">
+            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs text-center px-4 mb-4">
               The guard will verify this code at the gate to grant instant entry.
             </Text>
             <Pressable
               onPress={() => setGeneratedCode(null)}
-              className="bg-zinc-800 border border-zinc-700 py-3 px-6 rounded-xl active:opacity-80"
+              className="bg-primary-light dark:bg-primary-dark py-3 px-6 rounded-xl active:opacity-90"
             >
               <Text className="text-white font-semibold">Generate Another Pass</Text>
             </Pressable>
@@ -71,73 +76,125 @@ export function PreApproveView() {
         ) : (
           <View className="gap-4">
             <View>
-              <Text className="text-zinc-400 text-xs mb-1.5">Guest Name *</Text>
-              <TextInput
-                value={name}
-                onChangeText={setName}
-                placeholder="e.g. John Doe"
-                placeholderTextColor="#52525b"
-                className="bg-zinc-950 text-white rounded-xl py-3 px-4 border border-zinc-800 focus:border-amber-500/50"
+              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs mb-1.5">
+                Guest Name *
+              </Text>
+              <Controller
+                control={control}
+                name="name"
+                render={({ field }) => (
+                  <TextInput
+                    value={field.value}
+                    onChangeText={field.onChange}
+                    onBlur={field.onBlur}
+                    placeholder="e.g. John Doe"
+                    placeholderTextColor="#78716c"
+                    className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl py-3 px-4 focus:border-primary-light dark:focus:border-primary-dark"
+                  />
+                )}
+              />
+              {errors.name && (
+                <FieldError isInvalid className="text-rose-500 text-xs mt-1">
+                  {errors.name.message}
+                </FieldError>
+              )}
+            </View>
+
+            <View>
+              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs mb-1.5">
+                Guest Phone *
+              </Text>
+              <Controller
+                control={control}
+                name="phone"
+                render={({ field }) => (
+                  <TextInput
+                    value={field.value}
+                    onChangeText={field.onChange}
+                    onBlur={field.onBlur}
+                    placeholder="e.g. 9876543210"
+                    placeholderTextColor="#78716c"
+                    keyboardType="phone-pad"
+                    className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl py-3 px-4 focus:border-primary-light dark:focus:border-primary-dark"
+                  />
+                )}
+              />
+              {errors.phone && (
+                <FieldError isInvalid className="text-rose-500 text-xs mt-1">
+                  {errors.phone.message}
+                </FieldError>
+              )}
+            </View>
+
+            <View>
+              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs mb-1.5">
+                Purpose (Optional)
+              </Text>
+              <Controller
+                control={control}
+                name="purpose"
+                render={({ field }) => (
+                  <TextInput
+                    value={field.value ?? ""}
+                    onChangeText={field.onChange}
+                    onBlur={field.onBlur}
+                    placeholder="e.g. Dinner Guest"
+                    placeholderTextColor="#78716c"
+                    className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl py-3 px-4 focus:border-primary-light dark:focus:border-primary-dark"
+                  />
+                )}
               />
             </View>
 
             <View>
-              <Text className="text-zinc-400 text-xs mb-1.5">Guest Phone *</Text>
-              <TextInput
-                value={phone}
-                onChangeText={setPhone}
-                placeholder="e.g. 9876543210"
-                placeholderTextColor="#52525b"
-                keyboardType="phone-pad"
-                className="bg-zinc-950 text-white rounded-xl py-3 px-4 border border-zinc-800 focus:border-amber-500/50"
-              />
-            </View>
-
-            <View>
-              <Text className="text-zinc-400 text-xs mb-1.5">Purpose (Optional)</Text>
-              <TextInput
-                value={purpose}
-                onChangeText={setPurpose}
-                placeholder="e.g. Dinner Guest"
-                placeholderTextColor="#52525b"
-                className="bg-zinc-950 text-white rounded-xl py-3 px-4 border border-zinc-800 focus:border-amber-500/50"
-              />
-            </View>
-
-            <View>
-              <Text className="text-zinc-400 text-xs mb-1.5">Your Flat *</Text>
+              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs mb-1.5">
+                Your Flat *
+              </Text>
               {flats && flats.length > 0 ? (
-                <View className="flex-row gap-2 flex-wrap">
-                  {flats.map((f: any) => (
-                    <Pressable
-                      key={f.id}
-                      onPress={() => setFlatId(f.id)}
-                      className="py-2.5 px-4 rounded-xl border"
-                      style={{
-                        backgroundColor: flatId === f.id ? "rgba(245, 158, 11, 0.1)" : "#09090b",
-                        borderColor: flatId === f.id ? "#f59e0b" : "#27272a",
-                      }}
-                    >
-                      <Text
-                        style={{
-                          color: flatId === f.id ? "#f59e0b" : "#a1a1aa",
-                          fontWeight: flatId === f.id ? "600" : "400",
-                        }}
-                      >
-                        {f.tower.name} - {f.number}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
+                <Controller
+                  control={control}
+                  name="flatId"
+                  render={({ field }) => (
+                    <View className="flex-row gap-2 flex-wrap">
+                      {flats.map((f: any) => {
+                        const isSelected = field.value === f.id;
+                        return (
+                          <Pressable
+                            key={f.id}
+                            onPress={() => field.onChange(f.id)}
+                            className={`py-2.5 px-4 rounded-xl border ${
+                              isSelected
+                                ? "bg-primary-light/10 dark:bg-primary-dark/10 border-primary-light dark:border-primary-dark"
+                                : "bg-muted-light dark:bg-muted-dark border-border-light dark:border-border-dark"
+                            }`}
+                          >
+                            <Text
+                              className={`text-xs font-semibold ${
+                                isSelected ? "text-primary-light dark:text-primary-dark" : "text-muted-foreground-light dark:text-muted-foreground-dark"
+                              }`}
+                            >
+                              {f.tower.name} - {f.number}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  )}
+                />
               ) : (
                 <Text className="text-rose-500 text-xs">No registered flats found</Text>
+              )}
+              {errors.flatId && (
+                <FieldError isInvalid className="text-rose-500 text-xs mt-1">
+                  {errors.flatId.message}
+                </FieldError>
               )}
             </View>
 
             <Pressable
               disabled={preApproveMutation.isPending}
-              onPress={handlePreApprove}
-              className="bg-amber-600 rounded-xl py-3.5 mt-2 items-center justify-center active:opacity-80"
+              onPress={handleSubmit(onSubmit)}
+              className="bg-primary-light dark:bg-primary-dark rounded-xl py-3.5 mt-2 items-center justify-center active:opacity-90"
             >
               {preApproveMutation.isPending ? (
                 <ActivityIndicator color="white" />
@@ -147,9 +204,8 @@ export function PreApproveView() {
             </Pressable>
           </View>
         )}
-      </View>
-    </KeyboardAwareScrollView>
+      </Card>
+    </ScreenContainer>
   );
 }
-
-
+export default PreApproveView;

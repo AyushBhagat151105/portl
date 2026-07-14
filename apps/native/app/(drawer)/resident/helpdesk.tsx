@@ -1,6 +1,9 @@
 import React from "react";
 import { HelpdeskView } from "@/components/society/helpdesk-view";
+import { withRole } from "@/components/role-guard";
 
-export default function Page() {
+function Page() {
   return <HelpdeskView />;
 }
+
+export default withRole(Page, "resident");

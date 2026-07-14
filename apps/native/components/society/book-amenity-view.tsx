@@ -1,86 +1,110 @@
-import React, { useState } from "react";
-import { Text, View, Pressable, TextInput, Alert, ActivityIndicator } from "react-native";
-import { Card } from "heroui-native";
+import React from "react";
+import { Text, View, Pressable, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { FieldError } from "heroui-native";
 import { useAmenitiesQuery, useBookAmenityMutation } from "../../queries/society";
+import { useToastStore } from "../../store/useToastStore";
+import { ScreenContainer } from "../ui/screen-container";
+import { Card, CardTitle, CardDescription } from "../ui/card";
+import { Loader } from "../ui/loader";
+import { DateChips } from "../ui/date-chips";
+import { TimeSlotChips } from "../ui/time-slot-chips";
+import { bookAmenitySchema, type BookAmenityFormData } from "@/lib/form-schemas";
 
 export function BookAmenityView() {
   const { data: amenities, isLoading } = useAmenitiesQuery();
   const bookMutation = useBookAmenityMutation();
+  const { showToast } = useToastStore();
 
-  const [bookingAmenityId, setBookingAmenityId] = useState<string | null>(null);
-  const [timeslot, setTimeslot] = useState("10:00 AM - 12:00 PM");
-  const [date, setDate] = useState("2026-07-15");
+  const [bookingAmenityId, setBookingAmenityId] = React.useState<string | null>(null);
 
-  const handleBook = async () => {
+  const { control, handleSubmit, reset, formState: { errors } } = useForm<BookAmenityFormData>({
+    resolver: zodResolver(bookAmenitySchema),
+    mode: "onTouched",
+    defaultValues: { date: "", timeslot: "" },
+  });
+
+  const onSubmit = async (data: BookAmenityFormData) => {
     if (!bookingAmenityId) return;
 
     try {
       await bookMutation.mutateAsync({
         amenityId: bookingAmenityId,
-        date,
-        timeslot,
+        date: data.date,
+        timeslot: data.timeslot,
       });
       setBookingAmenityId(null);
-      Alert.alert("Success", "Amenity timeslot booked successfully!");
+      reset();
+      showToast("Amenity timeslot booked successfully!", "success");
     } catch (err: any) {
-      Alert.alert("Error", err.message || "Failed to book amenity");
+      showToast(err.message || "Failed to book amenity", "error");
     }
   };
 
   if (isLoading) {
-    return (
-      <View className="flex-1 bg-zinc-950 items-center justify-center">
-        <ActivityIndicator size="large" color="#f59e0b" />
-      </View>
-    );
+    return <Loader />;
   }
 
   return (
-    <KeyboardAwareScrollView
-      className="flex-1 bg-zinc-950 px-6 py-4"
-      contentContainerStyle={{ paddingBottom: 40 }}
-      keyboardShouldPersistTaps="handled"
-    >
-      <Text className="text-white text-xl font-bold mb-4">Society Amenities</Text>
+    <ScreenContainer contentContainerStyle={{ padding: 24, paddingBottom: 40 }}>
+      <Text className="text-foreground-light dark:text-foreground-dark text-xl font-bold mb-4">
+        Society Amenities
+      </Text>
 
       {bookingAmenityId ? (
-        <View className="bg-zinc-900 border border-zinc-800 p-5 rounded-2xl mb-4">
-          <View className="flex-row justify-between items-center mb-4">
-            <Text className="text-white text-lg font-bold">Book Timeslot</Text>
+        <Card className="mb-4 gap-4">
+          <View className="flex-row justify-between items-center mb-1">
+            <Text className="text-foreground-light dark:text-foreground-dark text-lg font-bold">Book Timeslot</Text>
             <Pressable onPress={() => setBookingAmenityId(null)}>
-              <Ionicons name="close-circle-outline" size={24} color="#a1a1aa" />
+              <Ionicons name="close-circle-outline" size={24} color="#78716c" />
             </Pressable>
           </View>
 
           <View className="gap-4">
+            {/* Date Picker Chips */}
             <View>
-              <Text className="text-zinc-400 text-xs mb-1.5">Booking Date (YYYY-MM-DD)</Text>
-              <TextInput
-                value={date}
-                onChangeText={setDate}
-                placeholder="2026-07-15"
-                placeholderTextColor="#52525b"
-                className="bg-zinc-950 text-white rounded-xl py-3 px-4 border border-zinc-800"
+              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs mb-2 uppercase tracking-wider font-medium">
+                Select Date
+              </Text>
+              <Controller
+                control={control}
+                name="date"
+                render={({ field }) => (
+                  <DateChips value={field.value} onChange={field.onChange} />
+                )}
               />
+              {errors.date && (
+                <FieldError isInvalid className="text-rose-500 text-xs mt-1.5">
+                  {errors.date.message}
+                </FieldError>
+              )}
             </View>
 
+            {/* Time Slot Chips */}
             <View>
-              <Text className="text-zinc-400 text-xs mb-1.5">Timeslot (Duration / Time)</Text>
-              <TextInput
-                value={timeslot}
-                onChangeText={setTimeslot}
-                placeholder="e.g. 10:00 AM - 12:00 PM"
-                placeholderTextColor="#52525b"
-                className="bg-zinc-950 text-white rounded-xl py-3 px-4 border border-zinc-800"
+              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs mb-2 uppercase tracking-wider font-medium">
+                Select Time Slot
+              </Text>
+              <Controller
+                control={control}
+                name="timeslot"
+                render={({ field }) => (
+                  <TimeSlotChips value={field.value} onChange={field.onChange} />
+                )}
               />
+              {errors.timeslot && (
+                <FieldError isInvalid className="text-rose-500 text-xs mt-1.5">
+                  {errors.timeslot.message}
+                </FieldError>
+              )}
             </View>
 
             <Pressable
               disabled={bookMutation.isPending}
-              onPress={handleBook}
-              className="bg-amber-600 rounded-xl py-3.5 mt-2 items-center justify-center active:opacity-80"
+              onPress={handleSubmit(onSubmit)}
+              className="bg-primary-light dark:bg-primary-dark rounded-xl py-3.5 mt-2 items-center justify-center active:opacity-90"
             >
               {bookMutation.isPending ? (
                 <ActivityIndicator color="white" />
@@ -89,50 +113,61 @@ export function BookAmenityView() {
               )}
             </Pressable>
           </View>
-        </View>
+        </Card>
       ) : null}
 
       {!amenities || amenities.length === 0 ? (
-        <View className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 items-center">
-          <Text className="text-zinc-500 text-sm">No amenities registered in society.</Text>
-        </View>
+        <Card className="items-center p-6">
+          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-sm">
+            No amenities registered in society.
+          </Text>
+        </Card>
       ) : (
         amenities.map((am: any) => (
-          <Card key={am.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 mb-4">
+          <Card key={am.id} className="mb-4">
             <View className="flex-row justify-between items-start">
               <View className="flex-1 pr-2">
-                <Text className="text-white text-lg font-bold">{am.name}</Text>
-                <Text className="text-zinc-400 text-xs mt-1">{am.description}</Text>
+                <CardTitle>{am.name}</CardTitle>
+                <CardDescription>{am.description}</CardDescription>
                 {am.location && (
-                  <Text className="text-zinc-500 text-xxs mt-0.5">Location: {am.location}</Text>
+                  <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs mt-0.5">
+                    Location: {am.location}
+                  </Text>
                 )}
               </View>
               <Pressable
                 onPress={() => setBookingAmenityId(am.id)}
-                className="bg-amber-600/10 border border-amber-500/30 px-3.5 py-2 rounded-xl active:opacity-80"
+                className="bg-primary-light/10 dark:bg-primary-dark/10 border border-primary-light/30 dark:border-primary-dark/30 px-3.5 py-2 rounded-xl active:opacity-85"
               >
-                <Text className="text-amber-500 text-xs font-semibold">Book Slot</Text>
+                <Text className="text-primary-light dark:text-primary-dark text-xs font-semibold">Book Slot</Text>
               </Pressable>
             </View>
 
-            <View className="border-t border-zinc-800/80 pt-3 mt-3">
-              <Text className="text-zinc-500 font-medium text-xxs mb-1.5 uppercase tracking-wider">Bookings Logs</Text>
+            <View className="border-t border-border-light dark:border-border-dark pt-3 mt-3">
+              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark font-medium text-xxs mb-1.5 uppercase tracking-wider">
+                Bookings Logs
+              </Text>
               {am.bookings && am.bookings.length > 0 ? (
                 am.bookings.slice(0, 3).map((b: any) => (
                   <View key={b.id} className="flex-row justify-between items-center py-1">
-                    <Text className="text-zinc-400 text-xxs">
+                    <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs">
                       {new Date(b.date).toLocaleDateString([], { month: "short", day: "numeric" })} @ {b.timeslot}
                     </Text>
-                    <Text className="text-zinc-500 text-xxs">By {b.bookedBy.name}</Text>
+                    <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs">
+                      By {b.bookedBy.name}
+                    </Text>
                   </View>
                 ))
               ) : (
-                <Text className="text-zinc-600 text-xxs">No upcoming slots booked.</Text>
+                <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs italic">
+                  No upcoming slots booked.
+                </Text>
               )}
             </View>
           </Card>
         ))
       )}
-    </KeyboardAwareScrollView>
+    </ScreenContainer>
   );
 }
+export default BookAmenityView;

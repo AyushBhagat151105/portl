@@ -1,6 +1,9 @@
 import React from "react";
 import { AdminDashboardView } from "@/components/society/admin-dashboard-view";
+import { withRole } from "@/components/role-guard";
 
-export default function Page() {
+function Page() {
   return <AdminDashboardView />;
 }
+
+export default withRole(Page, "admin");

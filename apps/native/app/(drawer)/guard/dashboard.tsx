@@ -1,6 +1,9 @@
 import React from "react";
 import { GuardDashboardView } from "@/components/society/guard-dashboard-view";
+import { withRole } from "@/components/role-guard";
 
-export default function Page() {
+function Page() {
   return <GuardDashboardView />;
 }
+
+export default withRole(Page, "guard");

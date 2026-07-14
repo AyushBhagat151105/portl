@@ -1,6 +1,9 @@
 import React from "react";
 import { ResidentDashboardView } from "@/components/society/resident-dashboard-view";
+import { withRole } from "@/components/role-guard";
 
-export default function Page() {
+function Page() {
   return <ResidentDashboardView />;
 }
+
+export default withRole(Page, "resident");

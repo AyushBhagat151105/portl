@@ -1,6 +1,9 @@
 import React from "react";
 import { CreateNoticeView } from "@/components/society/create-notice-view";
+import { withRole } from "@/components/role-guard";
 
-export default function Page() {
+function Page() {
   return <CreateNoticeView />;
 }
+
+export default withRole(Page, "admin");
