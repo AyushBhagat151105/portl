@@ -2,10 +2,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { Drawer, DrawerContentScrollView, DrawerItemList } from "expo-router/drawer";
 import { useThemeColor } from "heroui-native";
 import React from "react";
-import { View, Text, Pressable } from "react-native";
+import { View, Text, Pressable, ActivityIndicator } from "react-native";
 import { authClient } from "@/lib/auth-client";
 import { useSocietyStore } from "@/store/useSocietyStore";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { router } from "expo-router";
 
 function CustomDrawerContent(props: any) {
   const { currentRole, setRole } = useSocietyStore();
@@ -79,6 +80,25 @@ export default function DrawerLayout() {
   const { currentRole } = useSocietyStore();
   const themeColorForeground = useThemeColor("foreground");
   const themeColorBackground = useThemeColor("background");
+  const { data: session, isPending } = authClient.useSession();
+
+  React.useEffect(() => {
+    if (!isPending && !session) {
+      router.replace("/(auth)/sign-in");
+    }
+  }, [session, isPending]);
+
+  if (isPending) {
+    return (
+      <View className="flex-1 bg-zinc-950 items-center justify-center">
+        <ActivityIndicator size="large" color="#f59e0b" />
+      </View>
+    );
+  }
+
+  if (!session) {
+    return null;
+  }
 
   return (
     <Drawer
@@ -232,6 +252,33 @@ export default function DrawerLayout() {
           drawerLabel: "Helpdesk Manager",
           drawerItemStyle: { display: currentRole === "admin" ? "flex" : "none" },
           drawerIcon: ({ size, color }) => <Ionicons name="construct-outline" size={size} color={color} />,
+        }}
+      />
+      <Drawer.Screen
+        name="admin/manage-residents"
+        options={{
+          headerTitle: "Manage Residents",
+          drawerLabel: "Resident Flat Assignment",
+          drawerItemStyle: { display: currentRole === "admin" ? "flex" : "none" },
+          drawerIcon: ({ size, color }) => <Ionicons name="home-outline" size={size} color={color} />,
+        }}
+      />
+      <Drawer.Screen
+        name="admin/manage-amenities"
+        options={{
+          headerTitle: "Manage Amenities",
+          drawerLabel: "Amenities Manager",
+          drawerItemStyle: { display: currentRole === "admin" ? "flex" : "none" },
+          drawerIcon: ({ size, color }) => <Ionicons name="basketball-outline" size={size} color={color} />,
+        }}
+      />
+      <Drawer.Screen
+        name="admin/manage-staff"
+        options={{
+          headerTitle: "Manage Staff",
+          drawerLabel: "Staff Directory Manager",
+          drawerItemStyle: { display: currentRole === "admin" ? "flex" : "none" },
+          drawerIcon: ({ size, color }) => <Ionicons name="id-card-outline" size={size} color={color} />,
         }}
       />
     </Drawer>

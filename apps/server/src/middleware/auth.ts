@@ -53,7 +53,12 @@ export function roleMiddleware(allowedRoles: string[]) {
 
     // Role validation (case-insensitive checks)
     const userRole = member.role.toLowerCase();
-    const hasRole = allowedRoles.some((role) => role.toLowerCase() === userRole);
+    const userRoles = [userRole];
+    if (userRole === "owner") {
+      userRoles.push("admin");
+    }
+
+    const hasRole = allowedRoles.some((role) => userRoles.includes(role.toLowerCase()));
 
     if (!hasRole) {
       return errorResponse(c, `Forbidden: Requires one of [${allowedRoles.join(", ")}] roles`, "FORBIDDEN", 403);

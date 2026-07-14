@@ -13,6 +13,8 @@ export const auth = betterAuth({
   trustedOrigins: [
     env.CORS_ORIGIN,
     "mybetterfullstackapp://",
+    "portl://",
+    "portl://**",
     ...(env.NODE_ENV === "development"
       ? ["exp://", "exp://**", "exp://192.168.*.*:*/**", "http://localhost:8081"]
       : []),

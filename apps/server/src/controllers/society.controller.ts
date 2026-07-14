@@ -14,6 +14,10 @@ import {
   preApproveGuestSchema,
   bookAmenitySchema,
   registerPushTokenSchema,
+  joinSocietySchema,
+  assignFlatSchema,
+  createAmenitySchema,
+  createStaffSchema,
 } from "../schemas/society.schema";
 
 export class SocietyController {
@@ -361,6 +365,131 @@ export class SocietyController {
     try {
       const userId = c.get("userId");
       const result = await SocietyService.getMyFlats(userId);
+      return successResponse(c, result);
+    } catch (err: any) {
+      return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
+    }
+  }
+
+  // 18. Get current user society membership
+  static async getMembership(c: Context) {
+    try {
+      const session = c.get("session");
+      const userId = session.user.id;
+      const result = await SocietyService.getMembership(userId);
+      return successResponse(c, result);
+    } catch (err: any) {
+      return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
+    }
+  }
+
+  // 19. Join a society by slug
+  static async joinSociety(c: Context) {
+    try {
+      const session = c.get("session");
+      const userId = session.user.id;
+      const body = await c.req.json();
+      const parsed = joinSocietySchema.safeParse(body);
+      if (!parsed.success) {
+        return errorResponse(c, "Invalid request payload", "VALIDATION_ERROR", 400, parsed.error.format());
+      }
+
+      const result = await SocietyService.joinSociety(userId, parsed.data.slug, parsed.data.role);
+      return successResponse(c, result, 201);
+    } catch (err: any) {
+      return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
+    }
+  }
+
+  // 20. Get towers + flats for the society
+  static async getTowers(c: Context) {
+    try {
+      const societyId = c.get("societyId");
+      const result = await SocietyService.getTowers(societyId);
+      return successResponse(c, result);
+    } catch (err: any) {
+      return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
+    }
+  }
+
+  // 21. Get all members of the society
+  static async getMembers(c: Context) {
+    try {
+      const societyId = c.get("societyId");
+      const result = await SocietyService.getMembers(societyId);
+      return successResponse(c, result);
+    } catch (err: any) {
+      return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
+    }
+  }
+
+  // 22. Assign a flat to a resident (Admin)
+  static async assignFlat(c: Context) {
+    try {
+      const societyId = c.get("societyId");
+      const body = await c.req.json();
+      const parsed = assignFlatSchema.safeParse(body);
+      if (!parsed.success) {
+        return errorResponse(c, "Invalid request payload", "VALIDATION_ERROR", 400, parsed.error.format());
+      }
+
+      const result = await SocietyService.assignFlat(societyId, parsed.data.userId, parsed.data.flatId);
+      return successResponse(c, result);
+    } catch (err: any) {
+      return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
+    }
+  }
+
+  // 23. Create amenity (Admin)
+  static async createAmenity(c: Context) {
+    try {
+      const societyId = c.get("societyId");
+      const body = await c.req.json();
+      const parsed = createAmenitySchema.safeParse(body);
+      if (!parsed.success) {
+        return errorResponse(c, "Invalid request payload", "VALIDATION_ERROR", 400, parsed.error.format());
+      }
+
+      const result = await SocietyService.createAmenity(societyId, parsed.data);
+      return successResponse(c, result, 201);
+    } catch (err: any) {
+      return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
+    }
+  }
+
+  // 24. Create staff provider (Admin)
+  static async createStaff(c: Context) {
+    try {
+      const societyId = c.get("societyId");
+      const body = await c.req.json();
+      const parsed = createStaffSchema.safeParse(body);
+      if (!parsed.success) {
+        return errorResponse(c, "Invalid request payload", "VALIDATION_ERROR", 400, parsed.error.format());
+      }
+
+      const result = await SocietyService.createStaff(societyId, parsed.data);
+      return successResponse(c, result, 201);
+    } catch (err: any) {
+      return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
+    }
+  }
+
+  // 25. Delete staff provider (Admin)
+  static async deleteStaff(c: Context) {
+    try {
+      const staffId = c.req.param("id")!;
+      await SocietyService.deleteStaff(staffId);
+      return successResponse(c, { deleted: true });
+    } catch (err: any) {
+      return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
+    }
+  }
+
+  // 26. Get visitor history (EXITED + REJECTED)
+  static async getVisitorHistory(c: Context) {
+    try {
+      const societyId = c.get("societyId");
+      const result = await SocietyService.getVisitorHistory(societyId);
       return successResponse(c, result);
     } catch (err: any) {
       return errorResponse(c, err.message, "INTERNAL_ERROR", 500);

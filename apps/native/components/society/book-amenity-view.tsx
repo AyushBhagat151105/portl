@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { ScrollView, Text, View, Pressable, TextInput, Alert, ActivityIndicator } from "react-native";
+import { Text, View, Pressable, TextInput, Alert, ActivityIndicator } from "react-native";
 import { Card } from "heroui-native";
 import { Ionicons } from "@expo/vector-icons";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useAmenitiesQuery, useBookAmenityMutation } from "../../queries/society";
 
 export function BookAmenityView() {
@@ -37,7 +38,11 @@ export function BookAmenityView() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-zinc-950 px-6 py-4" contentContainerStyle={{ paddingBottom: 40 }}>
+    <KeyboardAwareScrollView
+      className="flex-1 bg-zinc-950 px-6 py-4"
+      contentContainerStyle={{ paddingBottom: 40 }}
+      keyboardShouldPersistTaps="handled"
+    >
       <Text className="text-white text-xl font-bold mb-4">Society Amenities</Text>
 
       {bookingAmenityId ? (
@@ -62,36 +67,14 @@ export function BookAmenityView() {
             </View>
 
             <View>
-              <Text className="text-zinc-400 text-xs mb-1.5">Select Slot</Text>
-              <View className="flex-row flex-wrap gap-2">
-                {[
-                  "08:00 AM - 10:00 AM",
-                  "10:00 AM - 12:00 PM",
-                  "02:00 PM - 04:00 PM",
-                  "04:00 PM - 06:00 PM",
-                  "06:00 PM - 08:00 PM",
-                ].map((slot) => (
-                  <Pressable
-                    key={slot}
-                    onPress={() => setTimeslot(slot)}
-                    className="py-2.5 px-3 rounded-lg border"
-                    style={{
-                      backgroundColor: timeslot === slot ? "rgba(245, 158, 11, 0.1)" : "#09090b",
-                      borderColor: timeslot === slot ? "#f59e0b" : "#27272a",
-                    }}
-                  >
-                    <Text
-                      className="text-xs"
-                      style={{
-                        color: timeslot === slot ? "#f59e0b" : "#a1a1aa",
-                        fontWeight: timeslot === slot ? "600" : "400",
-                      }}
-                    >
-                      {slot.replace(" AM", "").replace(" PM", "")}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
+              <Text className="text-zinc-400 text-xs mb-1.5">Timeslot (Duration / Time)</Text>
+              <TextInput
+                value={timeslot}
+                onChangeText={setTimeslot}
+                placeholder="e.g. 10:00 AM - 12:00 PM"
+                placeholderTextColor="#52525b"
+                className="bg-zinc-950 text-white rounded-xl py-3 px-4 border border-zinc-800"
+              />
             </View>
 
             <Pressable
@@ -102,29 +85,33 @@ export function BookAmenityView() {
               {bookMutation.isPending ? (
                 <ActivityIndicator color="white" />
               ) : (
-                <Text className="text-white font-bold text-base">Confirm Booking</Text>
+                <Text className="text-white font-bold text-base">Book Timeslot Now</Text>
               )}
             </Pressable>
           </View>
         </View>
-      ) : !amenities || amenities.length === 0 ? (
+      ) : null}
+
+      {!amenities || amenities.length === 0 ? (
         <View className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 items-center">
-          <Text className="text-zinc-500 text-sm">No amenities registered.</Text>
+          <Text className="text-zinc-500 text-sm">No amenities registered in society.</Text>
         </View>
       ) : (
         amenities.map((am: any) => (
-          <Card key={am.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4">
-            <View className="flex-row justify-between items-start mb-2">
+          <Card key={am.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 mb-4">
+            <View className="flex-row justify-between items-start">
               <View className="flex-1 pr-2">
-                <Text className="text-white text-base font-bold">{am.name}</Text>
-                {am.description && <Text className="text-zinc-400 text-xs mt-1">{am.description}</Text>}
-                {am.location && <Text className="text-zinc-500 text-xxs mt-1">Location: {am.location}</Text>}
+                <Text className="text-white text-lg font-bold">{am.name}</Text>
+                <Text className="text-zinc-400 text-xs mt-1">{am.description}</Text>
+                {am.location && (
+                  <Text className="text-zinc-500 text-xxs mt-0.5">Location: {am.location}</Text>
+                )}
               </View>
               <Pressable
                 onPress={() => setBookingAmenityId(am.id)}
-                className="bg-amber-600 px-4 py-2 rounded-xl active:opacity-80"
+                className="bg-amber-600/10 border border-amber-500/30 px-3.5 py-2 rounded-xl active:opacity-80"
               >
-                <Text className="text-white font-semibold text-xs">Book</Text>
+                <Text className="text-amber-500 text-xs font-semibold">Book Slot</Text>
               </Pressable>
             </View>
 
@@ -146,6 +133,6 @@ export function BookAmenityView() {
           </Card>
         ))
       )}
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }

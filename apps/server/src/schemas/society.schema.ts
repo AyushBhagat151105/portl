@@ -66,3 +66,30 @@ export const bookAmenitySchema = z.object({
 export const registerPushTokenSchema = z.object({
   token: z.string().min(1, "Push token is required"),
 });
+
+export const joinSocietySchema = z.object({
+  slug: z.string().min(1, "Society slug is required"),
+  role: z.enum(["resident", "guard"] as const).refine((v) => ["resident", "guard"].includes(v), {
+    message: "Role must be resident or guard",
+  }),
+});
+
+export const assignFlatSchema = z.object({
+  userId: z.string().min(1, "User ID is required"),
+  flatId: z.string().min(1, "Flat ID is required"),
+});
+
+export const createAmenitySchema = z.object({
+  name: z.string().min(1, "Amenity name is required"),
+  description: z.string().optional(),
+  location: z.string().optional(),
+  capacity: z.number().int().positive().optional(),
+});
+
+export const createStaffSchema = z.object({
+  name: z.string().min(1, "Staff name is required"),
+  phone: z.string().min(1, "Phone number is required"),
+  role: z.string().min(1, "Staff role is required"),
+  code: z.string().optional(),
+});
+

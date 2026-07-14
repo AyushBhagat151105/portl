@@ -1,57 +1,38 @@
+import axios from "axios";
 import { env } from "@portl/env/native";
+import { authClient } from "./auth-client";
 
-class ApiClient {
-  private async request(path: string, options: RequestInit = {}) {
-    const url = `${env.EXPO_PUBLIC_SERVER_URL}${path}`;
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-    });
+const api = axios.create({
+  baseURL: env.EXPO_PUBLIC_SERVER_URL,
+  withCredentials: false, // managed manually below via interceptor
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData?.error?.message || `HTTP ${response.status}`);
-    }
-
-    return response.json();
+// Request interceptor — attach session cookie from SecureStore on every request.
+// In React Native, cookies are NOT sent automatically like in browsers.
+// The expoClient plugin stores the session in SecureStore and exposes getCookie().
+api.interceptors.request.use(async (config) => {
+  const cookie = authClient.getCookie();
+  if (cookie) {
+    config.headers["Cookie"] = cookie;
   }
+  return config;
+});
 
-  async get(path: string, options?: { params?: Record<string, string> }) {
-    let url = path;
-    if (options?.params) {
-      const cleanParams: Record<string, string> = {};
-      Object.entries(options.params).forEach(([key, val]) => {
-        if (val !== undefined && val !== null && val !== "") {
-          cleanParams[key] = String(val);
-        }
-      });
-      const searchParams = new URLSearchParams(cleanParams);
-      url += `?${searchParams.toString()}`;
-    }
-    return this.request(url, { method: "GET" });
+// Response interceptor — normalize error messages
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const message =
+      error?.response?.data?.message ||
+      error?.response?.data?.error?.message ||
+      error?.message ||
+      "Something went wrong";
+    return Promise.reject(new Error(message));
   }
+);
 
-  async post(path: string, body?: any) {
-    return this.request(path, {
-      method: "POST",
-      body: body ? JSON.stringify(body) : undefined,
-    });
-  }
-
-  async patch(path: string, body?: any) {
-    return this.request(path, {
-      method: "PATCH",
-      body: body ? JSON.stringify(body) : undefined,
-    });
-  }
-
-  async delete(path: string) {
-    return this.request(path, { method: "DELETE" });
-  }
-}
-
-export const api = new ApiClient();
+export { api };
 export default api;

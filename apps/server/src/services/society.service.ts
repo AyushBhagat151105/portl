@@ -627,4 +627,164 @@ export class SocietyService {
       },
     });
   }
+
+  // 18. Get user membership in a society (first active org)
+  static async getMembership(userId: string): Promise<any | null> {
+    const member = await prisma.member.findFirst({
+      where: { userId },
+      include: {
+        organization: {
+          select: { id: true, name: true, slug: true, logo: true },
+        },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+    return member;
+  }
+
+  // 19. Join an existing society by slug
+  static async joinSociety(userId: string, slug: string, role: string): Promise<any> {
+    const org = await prisma.organization.findUnique({ where: { slug } });
+    if (!org) throw new Error("Society not found with this code");
+
+    const existing = await prisma.member.findFirst({
+      where: { userId, organizationId: org.id },
+    });
+    if (existing) throw new Error("You are already a member of this society");
+
+    return await prisma.member.create({
+      data: {
+        id: crypto.randomUUID(),
+        userId,
+        organizationId: org.id,
+        role,
+      },
+      include: {
+        organization: true,
+      },
+    });
+  }
+
+  // 20. Assign a resident to a flat (Admin)
+  static async assignFlat(societyId: string, userId: string, flatId: string): Promise<any> {
+    const flat = await prisma.flat.findUnique({
+      where: { id: flatId },
+      include: { tower: true },
+    });
+    if (!flat || flat.tower.organizationId !== societyId) {
+      throw new Error("Flat not found in this society");
+    }
+
+    return await prisma.user.update({
+      where: { id: userId },
+      data: {
+        flats: {
+          connect: { id: flatId },
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        flats: {
+          where: { tower: { organizationId: societyId } },
+          include: { tower: true },
+        },
+      },
+    });
+  }
+
+  // 21. Get all towers and their flats for a society
+  static async getTowers(societyId: string): Promise<any[]> {
+    return await prisma.tower.findMany({
+      where: { organizationId: societyId },
+      include: {
+        flats: {
+          include: {
+            residents: {
+              select: { id: true, name: true, email: true },
+            },
+          },
+        },
+      },
+      orderBy: { name: "asc" },
+    });
+  }
+
+  // 22. Get all members of a society with their flat assignments
+  static async getMembers(societyId: string): Promise<any[]> {
+    return await prisma.member.findMany({
+      where: { organizationId: societyId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+            flats: {
+              where: { tower: { organizationId: societyId } },
+              include: { tower: true },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+  }
+
+  // 23. Create a new amenity (Admin)
+  static async createAmenity(
+    societyId: string,
+    data: { name: string; description?: string; location?: string; capacity?: number }
+  ): Promise<any> {
+    return await prisma.amenity.create({
+      data: {
+        name: data.name,
+        description: data.description,
+        location: data.location,
+        capacity: data.capacity,
+        organizationId: societyId,
+      },
+    });
+  }
+
+  // 24. Create a new staff provider (Admin)
+  static async createStaff(
+    societyId: string,
+    data: { name: string; phone: string; role: string; code?: string }
+  ): Promise<any> {
+    return await prisma.staffProvider.create({
+      data: {
+        name: data.name,
+        phone: data.phone,
+        role: data.role,
+        code: data.code,
+        organizationId: societyId,
+      },
+    });
+  }
+
+  // 25. Delete a staff provider (Admin)
+  static async deleteStaff(staffId: string): Promise<any> {
+    return await prisma.staffProvider.delete({
+      where: { id: staffId },
+    });
+  }
+
+  // 26. Get visitor history (EXITED + REJECTED) for logs
+  static async getVisitorHistory(societyId: string): Promise<any[]> {
+    return await prisma.visitor.findMany({
+      where: {
+        organizationId: societyId,
+        status: { in: ["EXITED", "REJECTED"] },
+      },
+      include: {
+        flat: { include: { tower: true } },
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 100,
+    });
+  }
 }
+

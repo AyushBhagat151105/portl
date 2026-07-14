@@ -455,6 +455,31 @@ export const openapiSpec = {
           200: { description: "Success" },
         },
       },
+      post: {
+        tags: ["Amenities"],
+        summary: "Create a new amenity",
+        description: "Allows admins to initialize a new amenity. Requires Admin role.",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  name: { type: "string", example: "Tennis Court" },
+                  description: { type: "string", example: "Synthetic grass court" },
+                  location: { type: "string", example: "Block C Ground" },
+                  capacity: { type: "number", example: 4 },
+                },
+                required: ["name"],
+              },
+            },
+          },
+        },
+        responses: {
+          201: { description: "Created successfully" },
+        },
+      },
     },
     "/api/society/amenities/book": {
       post: {
@@ -490,6 +515,31 @@ export const openapiSpec = {
         description: "Retrieves contacts of society service providers. Open to all roles.",
         responses: {
           200: { description: "Success" },
+        },
+      },
+      post: {
+        tags: ["Staff"],
+        summary: "Add a staff provider",
+        description: "Creates a new staff/service provider record. Requires Admin role.",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  name: { type: "string", example: "Ram Singh" },
+                  phone: { type: "string", example: "9988776655" },
+                  role: { type: "string", example: "PLUMBER" },
+                  code: { type: "string", example: "B-101" },
+                },
+                required: ["name", "phone", "role"],
+              },
+            },
+          },
+        },
+        responses: {
+          201: { description: "Staff provider added successfully" },
         },
       },
     },
@@ -543,6 +593,116 @@ export const openapiSpec = {
         ],
         responses: {
           200: { description: "Notification marked as read" },
+        },
+      },
+    },
+    "/api/society/my-membership": {
+      get: {
+        tags: ["Setup"],
+        summary: "Get current user society membership",
+        description: "Checks if user belongs to any society and returns their role status.",
+        responses: {
+          200: { description: "Success" },
+        },
+      },
+    },
+    "/api/society/join": {
+      post: {
+        tags: ["Setup"],
+        summary: "Join a society by slug/code",
+        description: "Associates the user with the target society and requests a role.",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  slug: { type: "string", example: "sunshine-apts" },
+                  role: { type: "string", enum: ["resident", "guard"], example: "resident" },
+                },
+                required: ["slug", "role"],
+              },
+            },
+          },
+        },
+        responses: {
+          201: { description: "Joined society successfully" },
+          400: { description: "Validation inputs failed" },
+        },
+      },
+    },
+    "/api/society/staff/{id}": {
+      delete: {
+        tags: ["Staff"],
+        summary: "Remove staff provider",
+        description: "Deletes a staff provider record. Requires Admin role.",
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "string" },
+            description: "Staff ID",
+          },
+        ],
+        responses: {
+          200: { description: "Deleted successfully" },
+        },
+      },
+    },
+    "/api/society/members": {
+      get: {
+        tags: ["Setup"],
+        summary: "List all society members with flats",
+        description: "Retrieves list of all members and their active flat assignments. Requires Admin role.",
+        responses: {
+          200: { description: "Success" },
+        },
+      },
+    },
+    "/api/society/towers": {
+      get: {
+        tags: ["Setup"],
+        summary: "List all towers and flats structure",
+        description: "Retrieves the structural configuration of towers and flat nodes in the society. Requires Admin or Resident role.",
+        responses: {
+          200: { description: "Success" },
+        },
+      },
+    },
+    "/api/society/residents/assign-flat": {
+      patch: {
+        tags: ["Setup"],
+        summary: "Assign a resident to flat",
+        description: "Links a member to a flat structure. Requires Admin role.",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  userId: { type: "string", example: "user-id-here" },
+                  flatId: { type: "string", example: "flat-id-here" },
+                },
+                required: ["userId", "flatId"],
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: "Assigned flat successfully" },
+        },
+      },
+    },
+    "/api/society/visitors/history": {
+      get: {
+        tags: ["Visitors"],
+        summary: "Get visitor logs checkout history",
+        description: "Fetches historical records (EXITED or REJECTED logs). Requires Guard or Admin role.",
+        responses: {
+          200: { description: "Success" },
         },
       },
     },
