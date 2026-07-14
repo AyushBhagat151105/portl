@@ -1,0 +1,25 @@
+{
+  "name": "server",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "tsdown",
+    "check-types": "tsc -b",
+    "compile": "bun build --compile --minify --sourcemap --bytecode ./src/index.ts --outfile server"
+  },
+  "dependencies": {
+    "@portl/auth": "workspace:*",
+    "@portl/db": "workspace:*",
+    "@portl/env": "workspace:*",
+    "better-auth": "catalog:",
+    "dotenv": "catalog:",
+    "hono": "^4.12.27",
+    "winston": "^3.19.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@portl/config": "workspace:*",
+    "tsdown": "^0.22.3",
+    "typescript": "catalog:"
+  }
+}

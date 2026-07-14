@@ -1,0 +1,43 @@
+{
+  "name": "portl",
+  "private": true,
+  "workspaces": {
+    "packages": [
+      "apps/*",
+      "packages/*"
+    ],
+    "catalog": {
+      "dotenv": "^17.4.2",
+      "zod": "^4.4.3",
+      "typescript": "^6.0.3",
+      "better-auth": "^1.6.22",
+      "@better-auth/expo": "^1.6.22"
+    }
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "check-types": "turbo check-types",
+    "dev:native": "turbo -F native dev",
+    "dev:server": "turbo -F server dev",
+    "db:push": "turbo -F @portl/db db:push",
+    "db:studio": "turbo -F @portl/db db:studio",
+    "db:generate": "turbo -F @portl/db db:generate",
+    "db:migrate": "turbo -F @portl/db db:migrate"
+  },
+  "dependencies": {
+    "@portl/env": "workspace:*",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@portl/config": "workspace:*",
+    "turbo": "^2.10.0",
+    "typescript": "catalog:"
+  },
+  "overrides": {
+    "kysely": "0.28.17"
+  },
+  "packageManager": "bun@1.2.18"
+}

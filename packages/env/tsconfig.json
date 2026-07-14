@@ -1,0 +1,3 @@
+{
+  "extends": "@portl/config/tsconfig.base.json"
+}
