@@ -1,6 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Drawer } from "expo-router/drawer";
-import { DrawerContentScrollView, DrawerItemList } from "@react-navigation/drawer";
+import { Drawer, DrawerContentScrollView, DrawerItemList } from "expo-router/drawer";
 import { useThemeColor } from "heroui-native";
 import React from "react";
 import { View, Text, Pressable } from "react-native";
