@@ -52,6 +52,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "4365dcac-2316-4a65-8fdf-72a821ddc86a"
+      }
+    },
+    "owner": "ayush_bhagat_151105"
   }
 }

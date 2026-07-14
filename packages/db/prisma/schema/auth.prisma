@@ -11,6 +11,16 @@ model User {
   members       Member[]
   invitations   Invitation[] @relation("inviterInvitations")
 
+  // Portl Society App Relations
+  flats              Flat[]           @relation("FlatResidents")
+  bookings           AmenityBooking[]
+  authoredNotices    Notice[]
+  votes              PollVote[]
+  complaints         Complaint[]
+  registeredVisitors Visitor[]
+  pushTokens         PushToken[]
+  notifications      Notification[]
+
   @@unique([email])
   @@map("user")
 }
@@ -73,6 +83,15 @@ model Organization {
   createdAt   DateTime     @default(now())
   members     Member[]
   invitations Invitation[]
+
+  // Portl Society App Relations
+  towers         Tower[]
+  amenities      Amenity[]
+  notices        Notice[]
+  polls          Poll[]
+  complaints     Complaint[]
+  visitors       Visitor[]
+  staffProviders StaffProvider[]
 
   @@unique([slug])
   @@map("organization")

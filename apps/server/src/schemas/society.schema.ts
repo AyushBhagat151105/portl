@@ -1,0 +1,68 @@
+import { z } from "zod";
+
+export const setupSocietySchema = z.object({
+  towers: z.array(
+    z.object({
+      name: z.string().min(1, "Tower name is required"),
+      flats: z.array(z.string().min(1, "Flat number is required")),
+    })
+  ),
+});
+
+export const createNoticeSchema = z.object({
+  title: z.string().min(1, "Notice title is required"),
+  content: z.string().min(1, "Notice content is required"),
+});
+
+export const createPollSchema = z.object({
+  question: z.string().min(1, "Poll question is required"),
+  options: z.array(z.string().min(1)).min(2, "At least two options are required"),
+});
+
+export const votePollSchema = z.object({
+  optionIndex: z.number().int().nonnegative("Option index must be a non-negative integer"),
+});
+
+export const raiseComplaintSchema = z.object({
+  title: z.string().min(1, "Complaint title is required"),
+  description: z.string().min(1, "Complaint description is required"),
+  category: z.enum(["PLUMBING", "ELECTRICAL", "SECURITY", "CLEANLINESS", "OTHERS"]),
+  flatId: z.string().optional(),
+});
+
+export const updateComplaintSchema = z.object({
+  status: z.enum(["PENDING", "IN_PROGRESS", "RESOLVED"]),
+});
+
+export const registerVisitorSchema = z.object({
+  name: z.string().min(1, "Visitor name is required"),
+  phone: z.string().min(1, "Visitor phone is required"),
+  purpose: z.string().optional(),
+  type: z.enum(["GUEST", "DELIVERY", "CAB", "STAFF"]),
+  flatId: z.string().min(1, "Flat ID is required"),
+});
+
+export const verifyPasscodeSchema = z.object({
+  code: z.string().length(6, "Passcode must be exactly 6 characters"),
+});
+
+export const respondVisitorSchema = z.object({
+  status: z.enum(["APPROVED", "REJECTED"]),
+});
+
+export const preApproveGuestSchema = z.object({
+  name: z.string().min(1, "Guest name is required"),
+  phone: z.string().min(1, "Guest phone is required"),
+  purpose: z.string().optional(),
+  flatId: z.string().min(1, "Flat ID is required"),
+});
+
+export const bookAmenitySchema = z.object({
+  amenityId: z.string().min(1, "Amenity ID is required"),
+  date: z.string().min(1, "Date is required"), // Expecting ISO date string e.g. "2026-07-15"
+  timeslot: z.string().min(1, "Timeslot is required"), // e.g. "10:00 AM - 12:00 PM"
+});
+
+export const registerPushTokenSchema = z.object({
+  token: z.string().min(1, "Push token is required"),
+});

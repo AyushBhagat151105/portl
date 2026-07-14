@@ -1,49 +1,29 @@
-import { Ionicons } from "@expo/vector-icons";
-import { Card, Chip, useThemeColor } from "heroui-native";
-import { Text, View, Pressable } from "react-native";
-
-import { Container } from "@/components/container";
-import { SignIn } from "@/components/sign-in";
-import { SignUp } from "@/components/sign-up";
+import { Redirect } from "expo-router";
+import { ActivityIndicator, View } from "react-native";
 import { authClient } from "@/lib/auth-client";
+import { useSocietyStore } from "@/store/useSocietyStore";
 
-export default function Home() {
-  const { data: session } = authClient.useSession();
+export default function Index() {
+  const { data: session, isPending } = authClient.useSession();
+  const { currentRole } = useSocietyStore();
 
-  const mutedColor = useThemeColor("muted");
-  const successColor = useThemeColor("success");
-  const dangerColor = useThemeColor("danger");
-  const foregroundColor = useThemeColor("foreground");
-
-  return (
-    <Container className="p-6">
-      <View className="py-4 mb-6">
-        <Text className="text-4xl font-bold text-foreground mb-2">Better Fullstack</Text>
+  if (isPending) {
+    return (
+      <View className="flex-1 bg-zinc-950 items-center justify-center">
+        <ActivityIndicator size="large" color="#f59e0b" />
       </View>
+    );
+  }
 
-      {session?.user ? (
-        <Card variant="secondary" className="mb-6 p-4">
-          <Text className="text-foreground text-base mb-2">
-            Welcome, <Text className="font-medium">{session.user.name}</Text>
-          </Text>
-          <Text className="text-muted text-sm mb-4">{session.user.email}</Text>
-          <Pressable
-            className="bg-danger py-3 px-4 rounded-lg self-start active:opacity-70"
-            onPress={() => {
-              authClient.signOut();
-            }}
-          >
-            <Text className="text-foreground font-medium">Sign Out</Text>
-          </Pressable>
-        </Card>
-      ) : null}
+  if (!session) {
+    return <Redirect href="/(auth)/sign-in" />;
+  }
 
-      {!session?.user && (
-        <>
-          <SignIn />
-          <SignUp />
-        </>
-      )}
-    </Container>
-  );
+  if (currentRole === "resident") {
+    return <Redirect href="/(drawer)/resident/dashboard" />;
+  } else if (currentRole === "guard") {
+    return <Redirect href="/(drawer)/guard/dashboard" />;
+  } else {
+    return <Redirect href="/(drawer)/admin/dashboard" />;
+  }
 }

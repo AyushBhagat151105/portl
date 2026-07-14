@@ -1,0 +1,207 @@
+model Tower {
+  id             String       @id @default(uuid())
+  name           String       // e.g. "Tower A"
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  flats          Flat[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@map("tower")
+}
+
+model Flat {
+  id         String      @id @default(uuid())
+  number     String      // e.g. "101"
+  towerId    String
+  tower      Tower       @relation(fields: [towerId], references: [id], onDelete: Cascade)
+  residents  User[]      @relation("FlatResidents")
+  complaints Complaint[]
+  visitors   Visitor[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@index([towerId])
+  @@map("flat")
+}
+
+model Amenity {
+  id             String           @id @default(uuid())
+  name           String           // e.g. "Tennis Court"
+  description    String?
+  location       String?
+  capacity       Int?
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bookings       AmenityBooking[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([organizationId])
+  @@map("amenity")
+}
+
+model AmenityBooking {
+  id         String   @id @default(uuid())
+  amenityId  String
+  amenity    Amenity  @relation(fields: [amenityId], references: [id], onDelete: Cascade)
+  bookedById String
+  bookedBy   User     @relation(fields: [bookedById], references: [id], onDelete: Cascade)
+  date       DateTime
+  timeslot   String   // e.g. "10:00 AM - 12:00 PM"
+  status     String   @default("CONFIRMED") // CONFIRMED, CANCELLED
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([amenityId])
+  @@index([bookedById])
+  @@map("amenity_booking")
+}
+
+model Notice {
+  id             String       @id @default(uuid())
+  title          String
+  content        String
+  authorId       String
+  author         User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@index([authorId])
+  @@map("notice")
+}
+
+model Poll {
+  id             String       @id @default(uuid())
+  question       String
+  options        String[]
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  votes          PollVote[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@map("poll")
+}
+
+model PollVote {
+  id          String   @id @default(uuid())
+  pollId      String
+  poll        Poll     @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  optionIndex Int
+  createdAt   DateTime @default(now())
+
+  @@unique([pollId, userId])
+  @@index([pollId])
+  @@index([userId])
+  @@map("poll_vote")
+}
+
+model Complaint {
+  id             String       @id @default(uuid())
+  title          String
+  description    String
+  category       String       // e.g. "PLUMBING", "ELECTRICAL", "SECURITY", "CLEANLINESS"
+  status         String       @default("PENDING") // PENDING, IN_PROGRESS, RESOLVED
+  raisedById     String
+  raisedBy       User         @relation(fields: [raisedById], references: [id], onDelete: Cascade)
+  flatId         String?
+  flat           Flat?        @relation(fields: [flatId], references: [id], onDelete: SetNull)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@index([raisedById])
+  @@map("complaint")
+}
+
+enum VisitorType {
+  GUEST
+  DELIVERY
+  CAB
+  STAFF
+}
+
+enum VisitorStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXITED
+}
+
+model Visitor {
+  id              String        @id @default(uuid())
+  name            String
+  phone           String
+  purpose         String?
+  type            VisitorType
+  status          VisitorStatus @default(PENDING)
+  preApprovedCode String?       // 6-digit code for pre-approved guests
+  flatId          String
+  flat            Flat          @relation(fields: [flatId], references: [id], onDelete: Cascade)
+  enteredAt       DateTime?
+  exitedAt        DateTime?
+  registeredById  String        // Guard ID
+  registeredBy    User          @relation(fields: [registeredById], references: [id], onDelete: Cascade)
+  organizationId  String
+  organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([organizationId])
+  @@index([flatId])
+  @@index([registeredById])
+  @@map("visitor")
+}
+
+model StaffProvider {
+  id             String       @id @default(uuid())
+  name           String
+  phone          String
+  role           String       // e.g. "MAID", "DRIVER", "PLUMBER", "COOK"
+  status         String       @default("ACTIVE") // ACTIVE, INACTIVE
+  code           String?      // Optional card/badge ID
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@map("staff_provider")
+}
+
+model PushToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("push_token")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  type      String   // e.g. "GATE_CALL", "NOTICE", "COMPLAINT", "AMENITY"
+  data      String?  // JSON metadata (e.g. visitorId, complaintId)
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("notification")
+}
