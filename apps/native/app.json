@@ -47,7 +47,15 @@
           "icon": "./assets/images/icon.png",
           "color": "#111827"
         }
-      ]
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Portl to access your camera for scanning guest QR codes",
+          "barcodeScannerEnabled": true
+        }
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,

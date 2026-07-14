@@ -196,6 +196,15 @@ export default function DrawerLayout() {
           drawerIcon: ({ size, color }) => <Ionicons name="journal-outline" size={size} color={color} />,
         }}
       />
+      <Drawer.Screen
+        name="guard/scan-qr"
+        options={{
+          headerTitle: "Scan Guest QR",
+          drawerLabel: "Scan QR Code",
+          drawerItemStyle: { display: currentRole === "guard" ? "flex" : "none" },
+          drawerIcon: ({ size, color }) => <Ionicons name="scan-outline" size={size} color={color} />,
+        }}
+      />
 
       {/* ==================== ADMIN VIEWS ==================== */}
       <Drawer.Screen

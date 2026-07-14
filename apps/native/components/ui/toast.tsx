@@ -1,24 +1,32 @@
-import React, { useEffect } from "react";
-import { Text, Pressable, View } from "react-native";
+import React, { useEffect, useRef } from "react";
+import { Text, Pressable, Animated, Easing } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useToastStore } from "../../store/useToastStore";
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export function Toast() {
   const { visible, message, type, hideToast } = useToastStore();
   const insets = useSafeAreaInsets();
-  const translateY = useSharedValue(-100);
+  const translateY = useRef(new Animated.Value(-100)).current;
 
   useEffect(() => {
     if (visible) {
-      // Slide down from top
-      translateY.value = withSpring(insets.top + 12, { damping: 15 });
+      Animated.spring(translateY, {
+        toValue: insets.top + 12,
+        damping: 15,
+        useNativeDriver: true,
+      }).start();
     } else {
-      // Slide back up
-      translateY.value = withTiming(-100, { duration: 250 });
+      Animated.timing(translateY, {
+        toValue: -100,
+        duration: 250,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
     }
-  }, [visible, insets.top]);
+  }, [visible, insets.top, translateY]);
 
   const typeStyles = {
     success: {
@@ -40,43 +48,30 @@ export function Toast() {
 
   const currentStyle = typeStyles[type] || typeStyles.info;
 
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ translateY: translateY.value }],
-    };
-  });
-
-  if (!visible && translateY.value === -100) return null;
-
   return (
-    <Animated.View
-      style={[
-        animatedStyle,
-        {
-          position: "absolute",
-          top: 0,
-          left: 16,
-          right: 16,
-          zIndex: 9999,
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.3,
-          shadowRadius: 4.65,
-          elevation: 8,
-        },
-      ]}
+    <AnimatedPressable
+      onPress={hideToast}
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 16,
+        right: 16,
+        zIndex: 9999,
+        transform: [{ translateY }],
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4.65,
+        elevation: 8,
+      }}
+      className={`${currentStyle.bg} flex-row items-center gap-3 px-4 py-3 rounded-2xl border border-white/10`}
     >
-      <Pressable
-        onPress={hideToast}
-        className={`${currentStyle.bg} flex-row items-center gap-3 px-4 py-3 rounded-2xl border border-white/10`}
-      >
-        <Ionicons name={currentStyle.icon as any} size={20} color={currentStyle.iconColor} />
-        <Text className="text-white text-xs font-semibold flex-1 leading-relaxed">
-          {message}
-        </Text>
-        <Ionicons name="close" size={16} color="rgba(255, 255, 255, 0.6)" />
-      </Pressable>
-    </Animated.View>
+      <Ionicons name={currentStyle.icon as any} size={20} color={currentStyle.iconColor} />
+      <Text className="text-white text-xs font-semibold flex-1 leading-relaxed">
+        {message}
+      </Text>
+      <Ionicons name="close" size={16} color="rgba(255, 255, 255, 0.6)" />
+    </AnimatedPressable>
   );
 }
 export default Toast;

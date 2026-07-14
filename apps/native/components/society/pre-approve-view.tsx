@@ -1,21 +1,26 @@
-import React from "react";
-import { Text, View, Pressable, TextInput, ActivityIndicator } from "react-native";
+import React, { useRef } from "react";
+import { Text, View, Pressable, TextInput, ActivityIndicator, Share } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FieldError } from "heroui-native";
-import { usePreApproveGuestMutation, useMyFlatsQuery } from "../../queries/society";
-import { useToastStore } from "../../store/useToastStore";
-import { ScreenContainer } from "../ui/screen-container";
-import { Card } from "../ui/card";
+import ViewShot from "react-native-view-shot";
+import * as Sharing from "expo-sharing";
+import { usePreApproveGuestMutation, useMyFlatsQuery } from "@/queries/society";
+import { useToastStore } from "@/store/useToastStore";
+import { ScreenContainer } from "@/components/ui/screen-container";
+import { Card } from "@/components/ui/card";
+import { QRCodeGen } from "@/components/ui/qr-code";
 import { preApproveGuestSchema, type PreApproveGuestFormData } from "@/lib/form-schemas";
 
 export function PreApproveView() {
   const { data: flats } = useMyFlatsQuery();
   const preApproveMutation = usePreApproveGuestMutation();
   const { showToast } = useToastStore();
+  const qrViewShotRef = useRef<ViewShot>(null);
 
   const [generatedCode, setGeneratedCode] = React.useState<string | null>(null);
+  const [guestName, setGuestName] = React.useState("");
 
   const { control, handleSubmit, reset, setValue, formState: { errors } } = useForm<PreApproveGuestFormData>({
     resolver: zodResolver(preApproveGuestSchema),
@@ -38,11 +43,51 @@ export function PreApproveView() {
         flatId: data.flatId,
       });
       setGeneratedCode(visitor.preApprovedCode);
-      showToast("Guest invitation code generated successfully!", "success");
+      setGuestName(data.name);
+      showToast("Guest invitation code generated!", "success");
       reset({ name: "", phone: "", purpose: "" });
     } catch (err: any) {
       showToast(err.message || "Failed to generate pass", "error");
     }
+  };
+
+  const handleShareQR = async () => {
+    if (!generatedCode || !qrViewShotRef.current?.capture) return;
+    try {
+      // Capture the QR card view as a PNG image
+      const uri = await qrViewShotRef.current.capture();
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, {
+          mimeType: "image/png",
+          dialogTitle: "Share Guest QR Code",
+        });
+      } else {
+        await fallbackTextShare();
+      }
+    } catch {
+      await fallbackTextShare();
+    }
+  };
+
+  const fallbackTextShare = async () => {
+    if (!generatedCode) return;
+    try {
+      await Share.share({
+        message: `Your Portl Gate passcode for ${guestName || "your visit"}:\n\nCode: ${generatedCode}\n\nShow this code at the gate for instant entry.`,
+        title: "Guest Access Code",
+      });
+    } catch {}
+  };
+
+  const handleShareCode = async () => {
+    if (!generatedCode) return;
+    try {
+      await Share.share({
+        message: generatedCode,
+        title: "Guest Access Code",
+      });
+    } catch {}
   };
 
   return (
@@ -55,23 +100,51 @@ export function PreApproveView() {
         {generatedCode ? (
           <View className="items-center py-6">
             <Ionicons name="checkmark-circle-outline" size={48} color="#10b981" />
-            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-sm mt-3 mb-1">
-              Share this 6-digit passcode with your guest:
+            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-sm mt-3 mb-4">
+              Show or share this QR code with your guest
             </Text>
-            <View className="bg-muted-light dark:bg-muted-dark border border-primary-light/30 dark:border-primary-dark/30 px-6 py-4 rounded-xl mt-2 mb-4">
-              <Text className="text-primary-light dark:text-primary-dark text-3xl font-extrabold tracking-widest">
-                {generatedCode}
-              </Text>
+
+            {/* This ViewShot wraps everything we want to capture as an image */}
+            <ViewShot ref={qrViewShotRef} options={{ format: "png", quality: 1 }}>
+              <View className="items-center bg-white rounded-2xl p-5" style={{ elevation: 4 }}>
+                <QRCodeGen value={generatedCode} size={200} />
+                <View className="mt-3 px-4 py-2 rounded-lg bg-zinc-100">
+                  <Text className="text-zinc-900 text-2xl font-extrabold tracking-widest text-center">
+                    {generatedCode}
+                  </Text>
+                </View>
+                <Text className="text-zinc-500 text-[10px] text-center mt-2">
+                  Portl Gate Guest Pass
+                </Text>
+              </View>
+            </ViewShot>
+
+            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs text-center px-4 mt-4 mb-5">
+              Guest can show the QR code or share the 6-digit code at the gate.
+            </Text>
+
+            <View className="flex-row gap-3 w-full">
+              <Pressable
+                onPress={handleShareQR}
+                className="flex-1 flex-row items-center justify-center gap-2 bg-primary-light dark:bg-primary-dark py-3 rounded-xl active:opacity-85"
+              >
+                <Ionicons name="share-social-outline" size={16} color="#ffffff" />
+                <Text className="text-white font-semibold text-sm">Share QR</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleShareCode}
+                className="flex-1 flex-row items-center justify-center gap-2 bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark py-3 rounded-xl active:opacity-85"
+              >
+                <Ionicons name="copy-outline" size={16} color="#a8a29e" />
+                <Text className="text-muted-foreground-light dark:text-muted-foreground-dark font-semibold text-sm">Share Code</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => { setGeneratedCode(null); setGuestName(""); }}
+                className="flex-row items-center justify-center px-3 py-3 rounded-xl bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark active:opacity-85"
+              >
+                <Ionicons name="add-outline" size={18} color="#a8a29e" />
+              </Pressable>
             </View>
-            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs text-center px-4 mb-4">
-              The guard will verify this code at the gate to grant instant entry.
-            </Text>
-            <Pressable
-              onPress={() => setGeneratedCode(null)}
-              className="bg-primary-light dark:bg-primary-dark py-3 px-6 rounded-xl active:opacity-90"
-            >
-              <Text className="text-white font-semibold">Generate Another Pass</Text>
-            </Pressable>
           </View>
         ) : (
           <View className="gap-4">
