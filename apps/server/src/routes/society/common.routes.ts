@@ -18,6 +18,7 @@ router.get("/complaints", roleMiddleware(["resident", "admin"]), CommonSocietyCo
 router.get("/amenities", roleMiddleware(["resident", "admin"]), CommonSocietyController.getAmenities);
 router.get("/staff", roleMiddleware(["resident", "guard", "admin"]), CommonSocietyController.getStaff);
 router.get("/towers", roleMiddleware(["admin", "resident"]), CommonSocietyController.getTowers);
+router.get("/towers/:id/flats", roleMiddleware(["admin"]), CommonSocietyController.getTowerFlats);
 
 // Notification settings & push token endpoints
 router.post("/notifications/register-token", roleMiddleware(["resident", "guard", "admin"]), CommonSocietyController.registerPushToken);

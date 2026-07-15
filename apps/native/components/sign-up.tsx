@@ -22,25 +22,21 @@ export function SignUp() {
     setIsLoading(true);
     setError(null);
 
-    authClient.signUp.email(
-      {
+    try {
+      await authClient.signUp.email({
         name: data.name,
         email: data.email,
         password: data.password,
-      },
-      {
-        onError(err) {
-          setError(err.error?.message || "Failed to sign up");
-          setIsLoading(false);
-        },
-        onSuccess() {
-          router.replace("/(drawer)");
-        },
-        onFinished() {
-          setIsLoading(false);
-        },
-      },
-    );
+      });
+      await authClient.getSession();
+
+      // Brief window for SecureStore write and navigation context to sync
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      router.replace("/(drawer)");
+    } catch (err: any) {
+      setError(err.message || "Failed to sign up");
+      setIsLoading(false);
+    }
   }
 
   return (

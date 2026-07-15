@@ -28,4 +28,9 @@ router.post("/amenities", AdminSocietyController.createAmenity);
 router.post("/staff", AdminSocietyController.createStaff);
 router.delete("/staff/:id", AdminSocietyController.deleteStaff);
 
+// Dues & billing management
+router.get("/dues", AdminSocietyController.getDues);
+router.post("/dues/generate", AdminSocietyController.generateDues);
+router.patch("/dues/:id/mark-paid", AdminSocietyController.markDuePaidOffline);
+
 export default router;

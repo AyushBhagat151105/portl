@@ -20,6 +20,7 @@ model User {
   registeredVisitors Visitor[]
   pushTokens         PushToken[]
   notifications      Notification[]
+  notificationJobs   NotificationJob[]
 
   @@unique([email])
   @@map("user")
@@ -92,6 +93,7 @@ model Organization {
   complaints     Complaint[]
   visitors       Visitor[]
   staffProviders StaffProvider[]
+  maintenanceDues MaintenanceDue[]
 
   @@unique([slug])
   @@map("organization")

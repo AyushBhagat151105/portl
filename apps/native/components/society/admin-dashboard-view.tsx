@@ -6,7 +6,8 @@ import {
   useMembersQuery, 
   useActiveVisitorsQuery, 
   useVisitorHistoryQuery, 
-  useComplaintsQuery 
+  useComplaintsQuery,
+  useAdminDuesQuery
 } from "../../queries/society";
 import { ScreenContainer } from "../ui/screen-container";
 import { Card, CardTitle, CardDescription } from "../ui/card";
@@ -23,7 +24,10 @@ export function AdminDashboardView() {
   const { data: members = [], isLoading: membersLoading } = useMembersQuery();
   const { data: complaints = [], isLoading: complaintsLoading } = useComplaintsQuery();
   const { data: activeVisitors = [], isLoading: activeLoading } = useActiveVisitorsQuery();
-  const { data: historyVisitors = [], isLoading: historyLoading } = useVisitorHistoryQuery();
+  const { data: historyVisitorsData, isLoading: historyLoading } = useVisitorHistoryQuery();
+  const historyVisitors = historyVisitorsData?.data ?? [];
+  const { data: duesData, isLoading: duesLoading } = useAdminDuesQuery();
+  const dues = duesData?.data ?? [];
   const colorScheme = useColorScheme();
 
   const [visitorTab, setVisitorTab] = useState<"active" | "history">("active");
@@ -31,6 +35,8 @@ export function AdminDashboardView() {
   const residentsCount = members.filter((m: any) => m.role.toLowerCase() === "resident").length;
   const openComplaintsCount = complaints.filter((c: any) => c.status !== "RESOLVED").length;
   const activeVisitorsCount = activeVisitors.length;
+  const pendingDuesCount = dues.filter((d: any) => d.status === "PENDING").length;
+  const pendingDuesSum = dues.filter((d: any) => d.status === "PENDING").reduce((sum: number, due: any) => sum + due.amount, 0);
 
   const currentVisitors = visitorTab === "active" ? activeVisitors : historyVisitors;
   const visitorsLoading = visitorTab === "active" ? activeLoading : historyLoading;
@@ -89,6 +95,13 @@ export function AdminDashboardView() {
       color: "#14b8a6",
       route: "/admin/manage-amenities",
     },
+    {
+      title: "Dues & Billing",
+      desc: "Generate bills & view dues",
+      icon: "calculator-outline",
+      color: "#0ea5e9",
+      route: "/admin/manage-dues",
+    },
   ];
 
   return (
@@ -103,46 +116,63 @@ export function AdminDashboardView() {
         </Text>
       </View>
 
-      {/* 2. Stats summary section */}
-      <View className="flex-row gap-3 mb-6">
-        {/* Residents Stat */}
-        <Card className="flex-grow flex-shrink flex-1 py-4 items-center">
-          <View className="bg-blue-500/10 p-2 rounded-full mb-1">
-            <Ionicons name="people-outline" size={20} color="#3b82f6" />
-          </View>
-          <Text className="text-foreground-light dark:text-foreground-dark font-extrabold text-xl">
-            {membersLoading ? "—" : residentsCount}
-          </Text>
-          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs mt-0.5">
-            Residents
-          </Text>
-        </Card>
+      {/* 2. Stats summary section (2x2 grid) */}
+      <View className="gap-3 mb-6">
+        <View className="flex-row gap-3">
+          {/* Residents Stat */}
+          <Card className="flex-1 py-4 items-center">
+            <View className="bg-blue-500/10 p-2 rounded-full mb-1">
+              <Ionicons name="people-outline" size={20} color="#3b82f6" />
+            </View>
+            <Text className="text-foreground-light dark:text-foreground-dark font-extrabold text-xl">
+              {membersLoading ? "—" : residentsCount}
+            </Text>
+            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs mt-0.5">
+              Residents
+            </Text>
+          </Card>
 
-        {/* Tickets Stat */}
-        <Card className="flex-grow flex-shrink flex-1 py-4 items-center">
-          <View className="bg-purple-500/10 p-2 rounded-full mb-1">
-            <Ionicons name="construct-outline" size={20} color="#a78bfa" />
-          </View>
-          <Text className="text-foreground-light dark:text-foreground-dark font-extrabold text-xl">
-            {complaintsLoading ? "—" : openComplaintsCount}
-          </Text>
-          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs mt-0.5">
-            Open Tickets
-          </Text>
-        </Card>
+          {/* Tickets Stat */}
+          <Card className="flex-1 py-4 items-center">
+            <View className="bg-purple-500/10 p-2 rounded-full mb-1">
+              <Ionicons name="construct-outline" size={20} color="#a78bfa" />
+            </View>
+            <Text className="text-foreground-light dark:text-foreground-dark font-extrabold text-xl">
+              {complaintsLoading ? "—" : openComplaintsCount}
+            </Text>
+            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs mt-0.5">
+              Open Tickets
+            </Text>
+          </Card>
+        </View>
 
-        {/* Visitors Stat */}
-        <Card className="flex-grow flex-shrink flex-1 py-4 items-center">
-          <View className="bg-amber-500/10 p-2 rounded-full mb-1">
-            <Ionicons name="people-outline" size={20} color="#f59e0b" />
-          </View>
-          <Text className="text-foreground-light dark:text-foreground-dark font-extrabold text-xl">
-            {activeLoading ? "—" : activeVisitorsCount}
-          </Text>
-          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs mt-0.5">
-            Active Inside
-          </Text>
-        </Card>
+        <View className="flex-row gap-3">
+          {/* Visitors Stat */}
+          <Card className="flex-1 py-4 items-center">
+            <View className="bg-amber-500/10 p-2 rounded-full mb-1">
+              <Ionicons name="walk-outline" size={20} color="#f59e0b" />
+            </View>
+            <Text className="text-foreground-light dark:text-foreground-dark font-extrabold text-xl">
+              {activeLoading ? "—" : activeVisitorsCount}
+            </Text>
+            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs mt-0.5">
+              Active Inside
+            </Text>
+          </Card>
+
+          {/* Dues Stat */}
+          <Card className="flex-1 py-4 items-center">
+            <View className="bg-emerald-500/10 p-2 rounded-full mb-1">
+              <Ionicons name="wallet-outline" size={20} color="#10b981" />
+            </View>
+            <Text className="text-foreground-light dark:text-foreground-dark font-extrabold text-xl">
+              {duesLoading ? "—" : `₹${pendingDuesSum.toLocaleString()}`}
+            </Text>
+            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs mt-0.5 text-center px-1">
+              Unpaid Dues ({pendingDuesCount} bills)
+            </Text>
+          </Card>
+        </View>
       </View>
 
       {/* 3. Quick Actions Section */}

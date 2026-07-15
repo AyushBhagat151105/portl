@@ -12,15 +12,16 @@ model Tower {
 }
 
 model Flat {
-  id         String      @id @default(uuid())
-  number     String      // e.g. "101"
-  towerId    String
-  tower      Tower       @relation(fields: [towerId], references: [id], onDelete: Cascade)
-  residents  User[]      @relation("FlatResidents")
-  complaints Complaint[]
-  visitors   Visitor[]
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  id              String           @id @default(uuid())
+  number          String           // e.g. "101"
+  towerId         String
+  tower           Tower            @relation(fields: [towerId], references: [id], onDelete: Cascade)
+  residents       User[]           @relation("FlatResidents")
+  complaints      Complaint[]
+  visitors        Visitor[]
+  maintenanceDues MaintenanceDue[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   @@index([towerId])
   @@map("flat")
@@ -205,3 +206,55 @@ model Notification {
   @@index([userId])
   @@map("notification")
 }
+
+enum MaintenanceDueStatus {
+  PENDING
+  PAID
+}
+
+model MaintenanceDue {
+  id                String               @id @default(uuid())
+  flatId            String
+  flat              Flat                 @relation(fields: [flatId], references: [id], onDelete: Cascade)
+  amount            Float
+  dueDate           DateTime
+  month             String               // e.g. "July 2026"
+  status            MaintenanceDueStatus @default(PENDING)
+  paidAt            DateTime?
+  razorpayOrderId   String?              @unique
+  razorpayPaymentId String?
+  razorpaySignature String?
+  organizationId    String
+  organization      Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  @@index([flatId])
+  @@index([organizationId])
+  @@map("maintenance_due")
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model NotificationJob {
+  id             String      @id @default(uuid())
+  userId         String
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title          String
+  body           String
+  type           String      // e.g., "GATE_CALL", "NOTICE", "POLL", "BILLING"
+  status         JobStatus   @default(PENDING)
+  attempts       Int         @default(0)
+  errorMessage   String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([status])
+  @@map("notification_job")
+}
+

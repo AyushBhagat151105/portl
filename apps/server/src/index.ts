@@ -41,6 +41,11 @@ app.route("/api/society", commonRouter);
 // Support both /api/notifications and /api/society/notifications for token registration
 app.route("/api", commonRouter); // will route /api/notifications/register-token
 
+import { QueueService } from "./services/society/queue.service";
+
+// Start background notification queue worker
+QueueService.startQueueWorker();
+
 app.get("/", (c) => {
   return c.text("OK");
 });

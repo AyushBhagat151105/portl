@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
+import { queryKeys, type DuesFilters } from "./keys";
 
 // 1. Create notice announcement
 export function useCreateNoticeMutation() {
@@ -10,7 +11,7 @@ export function useCreateNoticeMutation() {
       return res.data?.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notices"] });
+      return queryClient.invalidateQueries({ queryKey: queryKeys.notices() });
     },
   });
 }
@@ -24,7 +25,7 @@ export function useCreatePollMutation() {
       return res.data?.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["polls"] });
+      return queryClient.invalidateQueries({ queryKey: queryKeys.polls() });
     },
   });
 }
@@ -38,7 +39,8 @@ export function useUpdateComplaintMutation() {
       return res.data?.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["complaints"] });
+      // Invalidate all complaint variants (with any filter)
+      return queryClient.invalidateQueries({ queryKey: ["complaints"] });
     },
   });
 }
@@ -46,11 +48,12 @@ export function useUpdateComplaintMutation() {
 // 4. Get all society members registry
 export function useMembersQuery() {
   return useQuery({
-    queryKey: ["members"],
+    queryKey: queryKeys.members(),
     queryFn: async () => {
       const res = await api.get("/api/society/admin/members");
       return res.data?.data ?? [];
     },
+    staleTime: 1000 * 60 * 5, // 5min — member list changes slowly
   });
 }
 
@@ -63,7 +66,7 @@ export function useAssignFlatMutation() {
       return res.data?.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["members"] });
+      return queryClient.invalidateQueries({ queryKey: queryKeys.members() });
     },
   });
 }
@@ -77,7 +80,7 @@ export function useCreateAmenityMutation() {
       return res.data?.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["amenities"] });
+      return queryClient.invalidateQueries({ queryKey: queryKeys.amenities() });
     },
   });
 }
@@ -91,7 +94,7 @@ export function useCreateStaffMutation() {
       return res.data?.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["staff"] });
+      return queryClient.invalidateQueries({ queryKey: queryKeys.staff() });
     },
   });
 }
@@ -105,12 +108,12 @@ export function useDeleteStaffMutation() {
       return res.data?.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["staff"] });
+      return queryClient.invalidateQueries({ queryKey: queryKeys.staff() });
     },
   });
 }
 
-// 9. Setup or modify society structure config (Merges post-setup configurations)
+// 9. Setup or modify society structure config
 export function useSetupStructureMutation() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -119,7 +122,48 @@ export function useSetupStructureMutation() {
       return res.data?.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["towers"] });
+      return queryClient.invalidateQueries({ queryKey: queryKeys.towers() });
+    },
+  });
+}
+
+// 10. Get all society dues logs (with optional month/status filter)
+export function useAdminDuesQuery(filters?: DuesFilters) {
+  return useQuery<{ data: any[]; nextCursor: string | null }>({
+    queryKey: queryKeys.dues.admin(filters),
+    queryFn: async () => {
+      const res = await api.get("/api/society/admin/dues", { params: filters });
+      return res.data?.data ?? { data: [], nextCursor: null };
+    },
+    staleTime: 1000 * 30, // 30s — due status changes on payment/reconciliation
+  });
+}
+
+// 11. Generate maintenance dues for all flats
+export function useGenerateDuesMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { amount: number; month: string; dueDate: string }) => {
+      const res = await api.post("/api/society/admin/dues/generate", data);
+      return res.data?.data;
+    },
+    onSuccess: () => {
+      // Invalidate all dues.admin variants regardless of filter
+      return queryClient.invalidateQueries({ queryKey: ["dues", "admin"] });
+    },
+  });
+}
+
+// 12. Mark due paid offline
+export function useMarkDuePaidMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (dueId: string) => {
+      const res = await api.patch(`/api/society/admin/dues/${dueId}/mark-paid`);
+      return res.data?.data;
+    },
+    onSuccess: () => {
+      return queryClient.invalidateQueries({ queryKey: ["dues"] });
     },
   });
 }

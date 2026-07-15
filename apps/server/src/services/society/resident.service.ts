@@ -114,4 +114,116 @@ export class ResidentSocietyService {
       },
     });
   }
+
+  // 7. Get resident's maintenance dues
+  static async getMyDues(userId: string): Promise<any[]> {
+    return await prisma.maintenanceDue.findMany({
+      where: {
+        flat: {
+          residents: {
+            some: { id: userId },
+          },
+        },
+      },
+      include: {
+        flat: {
+          include: {
+            tower: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  // 8. Create Razorpay order for due payment
+  static async createRazorpayOrder(dueId: string, userId: string): Promise<any> {
+    const due = await prisma.maintenanceDue.findUnique({
+      where: { id: dueId },
+      include: {
+        flat: {
+          include: {
+            residents: true,
+          },
+        },
+      },
+    });
+
+    if (!due) throw new Error("Due record not found");
+    if (due.status === "PAID") throw new Error("This due is already paid");
+
+    const isResident = due.flat.residents.some((r) => r.id === userId);
+    if (!isResident) throw new Error("Unauthorized to pay this due");
+
+    const Razorpay = require("razorpay");
+    const razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
+
+    const order = await razorpay.orders.create({
+      amount: Math.round(due.amount * 100), // in paise
+      currency: "INR",
+      receipt: due.id,
+    });
+
+    await prisma.maintenanceDue.update({
+      where: { id: dueId },
+      data: {
+        razorpayOrderId: order.id,
+      },
+    });
+
+    return {
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      keyId: process.env.RAZORPAY_KEY_ID,
+    };
+  }
+
+  // 9. Verify Razorpay payment signature
+  static async verifyPayment(
+    dueId: string,
+    userId: string,
+    razorpay_payment_id: string,
+    razorpay_order_id: string,
+    razorpay_signature: string
+  ): Promise<any> {
+    const due = await prisma.maintenanceDue.findUnique({
+      where: { id: dueId },
+      include: {
+        flat: {
+          include: {
+            residents: true,
+          },
+        },
+      },
+    });
+
+    if (!due) throw new Error("Due record not found");
+    if (due.status === "PAID") throw new Error("This due is already paid");
+
+    const isResident = due.flat.residents.some((r) => r.id === userId);
+    if (!isResident) throw new Error("Unauthorized to pay this due");
+
+    const crypto = require("crypto");
+    const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET);
+    hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
+    const generatedSignature = hmac.digest("hex");
+
+    if (generatedSignature !== razorpay_signature) {
+      throw new Error("Invalid payment signature");
+    }
+
+    return await prisma.maintenanceDue.update({
+      where: { id: dueId },
+      data: {
+        status: "PAID",
+        paidAt: new Date(),
+        razorpayPaymentId: razorpay_payment_id,
+        razorpaySignature: razorpay_signature,
+      },
+    });
+  }
 }

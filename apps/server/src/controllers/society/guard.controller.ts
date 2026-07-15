@@ -83,11 +83,15 @@ export class GuardSocietyController {
     }
   }
 
-  // Get historical logs
+  // Get historical logs — cursor paginated
   static async getVisitorHistory(c: Context) {
     try {
       const societyId = c.get("societyId");
-      const result = await GuardSocietyService.getVisitorHistory(societyId);
+      const { cursor, limit } = c.req.query();
+      const result = await GuardSocietyService.getVisitorHistory(societyId, {
+        cursor: cursor || undefined,
+        limit: limit ? parseInt(limit, 10) : undefined,
+      });
       return successResponse(c, result);
     } catch (err: any) {
       return errorResponse(c, err.message, "INTERNAL_ERROR", 500);

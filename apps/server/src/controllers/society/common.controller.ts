@@ -84,11 +84,15 @@ export class CommonSocietyController {
     }
   }
 
-  // Get notifications history logs
+  // Get notifications history logs — paginated
   static async getNotifications(c: Context) {
     try {
       const userId = c.get("userId");
-      const result = await CommonSocietyService.getNotifications(userId);
+      const { cursor, limit } = c.req.query();
+      const result = await CommonSocietyService.getNotifications(userId, {
+        cursor: cursor || undefined,
+        limit: limit ? parseInt(limit, 10) : undefined,
+      });
       return successResponse(c, result);
     } catch (err: any) {
       return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
@@ -136,7 +140,7 @@ export class CommonSocietyController {
     }
   }
 
-  // Get towers and flats layout structure
+  // Get towers and flats layout structure (lean — no residents)
   static async getTowers(c: Context) {
     try {
       const societyId = c.get("societyId");
@@ -146,4 +150,16 @@ export class CommonSocietyController {
       return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
     }
   }
+
+  // Lazy-load flats with residents for a specific tower
+  static async getTowerFlats(c: Context) {
+  try {
+    const societyId = c.get("societyId");
+    const towerId = c.req.param("id")!;
+    const result = await CommonSocietyService.getTowerFlats(towerId, societyId);
+    return successResponse(c, result);
+  } catch (err: any) {
+    return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
+  }
+}
 }

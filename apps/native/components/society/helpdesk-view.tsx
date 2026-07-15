@@ -15,7 +15,7 @@ import { raiseComplaintSchema, type RaiseComplaintFormData } from "@/lib/form-sc
 export function HelpdeskView() {
   const { data: complaints, isLoading: complaintsLoading } = useComplaintsQuery();
   const raiseComplaintMutation = useRaiseComplaintMutation();
-  const { data: flats } = useMyFlatsQuery();
+  const { data: flats, isLoading: flatsLoading } = useMyFlatsQuery();
   const { showToast } = useToastStore();
 
   const [isRaising, setIsRaising] = React.useState(false);
@@ -36,6 +36,26 @@ export function HelpdeskView() {
       setValue("flatId", flats[0].id);
     }
   }, [flats, setValue]);
+
+  if (complaintsLoading || flatsLoading) {
+    return <Loader />;
+  }
+
+  if (flats && flats.length === 0) {
+    return (
+      <ScreenContainer contentContainerStyle={{ padding: 24, justifyContent: "center", flexGrow: 1 }}>
+        <Card className="p-8 items-center border border-amber-500/20 bg-amber-500/5">
+          <Ionicons name="warning-outline" size={48} color="#d97706" style={{ marginBottom: 16 }} />
+          <Text className="text-foreground-light dark:text-foreground-dark text-lg font-bold mb-2 text-center">
+            No Flat Associated
+          </Text>
+          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-sm text-center leading-relaxed">
+            Your profile is not linked to any flat in this society yet. Please contact the society administrator/owner to assign you to a flat.
+          </Text>
+        </Card>
+      </ScreenContainer>
+    );
+  }
 
   const onSubmit = async (data: RaiseComplaintFormData) => {
     try {

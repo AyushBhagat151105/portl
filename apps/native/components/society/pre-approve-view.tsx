@@ -14,7 +14,7 @@ import { QRCodeGen } from "@/components/ui/qr-code";
 import { preApproveGuestSchema, type PreApproveGuestFormData } from "@/lib/form-schemas";
 
 export function PreApproveView() {
-  const { data: flats } = useMyFlatsQuery();
+  const { data: flats, isLoading } = useMyFlatsQuery();
   const preApproveMutation = usePreApproveGuestMutation();
   const { showToast } = useToastStore();
   const qrViewShotRef = useRef<ViewShot>(null);
@@ -33,6 +33,30 @@ export function PreApproveView() {
       setValue("flatId", flats[0].id);
     }
   }, [flats, setValue]);
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 bg-zinc-950 items-center justify-center">
+        <ActivityIndicator size="large" color="#f59e0b" />
+      </View>
+    );
+  }
+
+  if (flats && flats.length === 0) {
+    return (
+      <ScreenContainer contentContainerStyle={{ padding: 24, justifyContent: "center", flexGrow: 1 }}>
+        <Card className="p-8 items-center border border-amber-500/20 bg-amber-500/5">
+          <Ionicons name="warning-outline" size={48} color="#d97706" style={{ marginBottom: 16 }} />
+          <Text className="text-foreground-light dark:text-foreground-dark text-lg font-bold mb-2 text-center">
+            No Flat Associated
+          </Text>
+          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-sm text-center leading-relaxed">
+            Your profile is not linked to any flat in this society yet. Please contact the society administrator/owner to assign you to a flat.
+          </Text>
+        </Card>
+      </ScreenContainer>
+    );
+  }
 
   const onSubmit = async (data: PreApproveGuestFormData) => {
     try {

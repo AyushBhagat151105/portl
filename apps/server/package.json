@@ -16,6 +16,7 @@
     "better-auth": "catalog:",
     "dotenv": "catalog:",
     "hono": "^4.12.27",
+    "razorpay": "^2.9.8",
     "winston": "^3.19.0",
     "zod": "catalog:"
   },

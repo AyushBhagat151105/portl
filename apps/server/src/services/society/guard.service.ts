@@ -1,6 +1,7 @@
 import prisma from "@portl/db";
 import type { Visitor } from "@portl/db";
 import { sendPushNotification } from "./common.service";
+import { QueueService } from "./queue.service";
 
 export class GuardSocietyService {
   // 1. Search residents by name/email
@@ -77,24 +78,23 @@ export class GuardSocietyService {
     });
 
     if (flat && flat.residents.length > 0) {
-      for (const resident of flat.residents) {
-        const title = "Gate Access Request 🔔";
-        const body = `${visitor.name} (${data.type.toLowerCase()}) is requesting entry to Flat ${flat.tower.name} - ${flat.number}`;
+      const title = "Gate Access Request 🔔";
+      const body = `${visitor.name} (${data.type.toLowerCase()}) is requesting entry to Flat ${flat.tower.name} - ${flat.number}`;
 
-        await prisma.notification.create({
-          data: {
-            userId: resident.id,
-            title,
-            body,
-            type: "GATE_CALL",
-            data: JSON.stringify({ visitorId: visitor.id }),
-          },
-        });
+      const notifications = flat.residents.map((resident) => ({
+        userId: resident.id,
+        title,
+        body,
+        type: "GATE_CALL",
+        data: JSON.stringify({ visitorId: visitor.id }),
+      }));
 
-        await sendPushNotification(resident.id, title, body, {
-          url: `/resident/dashboard?activeVisitorId=${visitor.id}`,
-        });
-      }
+      await prisma.notification.createMany({
+        data: notifications,
+      });
+
+      const userIds = flat.residents.map((r) => r.id);
+      await QueueService.pushNotificationJobsBulk(userIds, title, body, "GATE_CALL");
     }
 
     return visitor;
@@ -230,18 +230,29 @@ export class GuardSocietyService {
     });
   }
 
-  // 6. Get visitor checkout logs history (EXITED or REJECTED)
-  static async getVisitorHistory(societyId: string): Promise<any[]> {
-    return await prisma.visitor.findMany({
-      where: {
-        organizationId: societyId,
-        status: { in: ["EXITED", "REJECTED"] },
-      },
+  // 6. Get visitor checkout logs history (EXITED or REJECTED) — cursor paginated
+  static async getVisitorHistory(
+    societyId: string,
+    params: { cursor?: string; limit?: number } = {}
+  ): Promise<{ data: any[]; nextCursor: string | null }> {
+    const take = Math.min(params.limit ?? 25, 50);
+    const where: any = {
+      organizationId: societyId,
+      status: { in: ["EXITED", "REJECTED"] },
+    };
+    if (params.cursor) where.id = { lt: params.cursor };
+
+    const items = await prisma.visitor.findMany({
+      where,
+      take: take + 1,
       include: {
         flat: { include: { tower: true } },
       },
       orderBy: { updatedAt: "desc" },
-      take: 100,
     });
+
+    const hasMore = items.length > take;
+    const data = hasMore ? items.slice(0, take) : items;
+    return { data, nextCursor: hasMore ? (data[data.length - 1]?.id ?? null) : null };
   }
 }

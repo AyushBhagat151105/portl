@@ -21,4 +21,9 @@ router.post("/amenities/book", ResidentSocietyController.bookAmenity);
 // Community voting on polls
 router.post("/polls/:id/vote", ResidentSocietyController.votePoll);
 
+// Maintenance dues & Razorpay payments
+router.get("/dues", ResidentSocietyController.getMyDues);
+router.post("/dues/:id/order", ResidentSocietyController.createRazorpayOrder);
+router.post("/dues/:id/verify-payment", ResidentSocietyController.verifyPayment);
+
 export default router;

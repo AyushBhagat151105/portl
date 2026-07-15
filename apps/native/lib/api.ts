@@ -10,13 +10,18 @@ const api = axios.create({
   },
 });
 
-// Request interceptor — attach session cookie from SecureStore on every request.
-// In React Native, cookies are NOT sent automatically like in browsers.
-// The expoClient plugin stores the session in SecureStore and exposes getCookie().
+// Request interceptor — attach session cookie or Bearer token on every request.
+// In React Native, manual Cookie headers can be stripped by OkHttp on Android.
+// We extract the session token and set the Authorization Bearer header for 100% Android reliability.
 api.interceptors.request.use(async (config) => {
   const cookie = authClient.getCookie();
   if (cookie) {
     config.headers["Cookie"] = cookie;
+
+    const match = cookie.match(/better-auth\.session_token=([^;]+)/);
+    if (match && match[1]) {
+      config.headers["Authorization"] = `Bearer ${match[1]}`;
+    }
   }
   return config;
 });

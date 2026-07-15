@@ -44,31 +44,43 @@ export class CommonSocietyService {
     });
   }
 
-  // Get community polls
+  // Get community polls — vote counts computed in DB, not in-memory
   static async getPolls(societyId: string, userId: string): Promise<any[]> {
     const polls = await prisma.poll.findMany({
       where: { organizationId: societyId },
-      include: {
-        votes: true,
-      },
       orderBy: { createdAt: "desc" },
+      // Do NOT include votes array — we aggregate in DB below
     });
 
-    return polls.map((p) => {
-      const userVote = p.votes.find((v) => v.userId === userId);
-      const optionCounts = new Array(p.options.length).fill(0);
-      p.votes.forEach((v) => {
-        if (v.optionIndex < optionCounts.length) {
-          optionCounts[v.optionIndex]++;
-        }
-      });
+    // Single aggregation query for all polls in this society
+    const voteGroups = await prisma.pollVote.groupBy({
+      by: ["pollId", "optionIndex"],
+      where: { pollId: { in: polls.map((p) => p.id) } },
+      _count: { optionIndex: true },
+    });
 
+    // Fetch only the current user's votes for this set of polls
+    const userVotes = await prisma.pollVote.findMany({
+      where: { userId, pollId: { in: polls.map((p) => p.id) } },
+      select: { pollId: true, optionIndex: true },
+    });
+    const userVoteMap = new Map(userVotes.map((v) => [v.pollId, v.optionIndex]));
+
+    return polls.map((p) => {
+      const optionCounts = new Array(p.options.length).fill(0);
+      let totalVotes = 0;
+      for (const g of voteGroups) {
+        if (g.pollId === p.id && g.optionIndex < optionCounts.length) {
+          optionCounts[g.optionIndex] = g._count.optionIndex;
+          totalVotes += g._count.optionIndex;
+        }
+      }
       return {
         id: p.id,
         question: p.question,
         options: p.options,
-        totalVotes: p.votes.length,
-        userVotedIndex: userVote ? userVote.optionIndex : null,
+        totalVotes,
+        userVotedIndex: userVoteMap.has(p.id) ? userVoteMap.get(p.id) : null,
         results: optionCounts,
         createdAt: p.createdAt,
       };
@@ -97,18 +109,12 @@ export class CommonSocietyService {
     });
   }
 
-  // Get list of all amenities
+  // Get list of all amenities — bookings are NOT included in the list to keep payload lean.
+  // Load individual amenity bookings only when the user opens the detail/booking view.
   static async getAmenities(societyId: string): Promise<any[]> {
     return await prisma.amenity.findMany({
       where: { organizationId: societyId },
-      include: {
-        bookings: {
-          where: { date: { gte: new Date() } },
-          include: {
-            bookedBy: { select: { name: true } },
-          },
-        },
-      },
+      orderBy: { name: "asc" },
     });
   }
 
@@ -128,12 +134,24 @@ export class CommonSocietyService {
     });
   }
 
-  // Get notifications logs
-  static async getNotifications(userId: string): Promise<any[]> {
-    return await prisma.notification.findMany({
-      where: { userId },
+  // Get notifications logs with cursor pagination (max 30 per page)
+  static async getNotifications(
+    userId: string,
+    params: { cursor?: string; limit?: number } = {}
+  ): Promise<{ data: any[]; nextCursor: string | null }> {
+    const take = Math.min(params.limit ?? 30, 50);
+    const where: any = { userId };
+    if (params.cursor) where.id = { lt: params.cursor };
+
+    const items = await prisma.notification.findMany({
+      where,
+      take: take + 1,
       orderBy: { createdAt: "desc" },
     });
+
+    const hasMore = items.length > take;
+    const data = hasMore ? items.slice(0, take) : items;
+    return { data, nextCursor: hasMore && data.length > 0 ? data[data.length - 1]!.id : null };
   }
 
   // Mark in-app notification read
@@ -181,20 +199,38 @@ export class CommonSocietyService {
     });
   }
 
-  // Get towers and flats configuration list
+  // Get towers list — flats included with only id/number for the setup screen.
+  // Residents are NOT loaded here; use getTowerFlats for per-tower lazy load.
   static async getTowers(societyId: string): Promise<any[]> {
     return await prisma.tower.findMany({
       where: { organizationId: societyId },
       include: {
         flats: {
-          include: {
-            residents: {
-              select: { id: true, name: true, email: true },
-            },
+          select: {
+            id: true,
+            number: true,
+            _count: { select: { residents: true } },
           },
+          orderBy: { number: "asc" },
         },
       },
       orderBy: { name: "asc" },
+    });
+  }
+
+  // Lazy-load flats with residents for a single tower (used in assignment view)
+  static async getTowerFlats(towerId: string, societyId: string): Promise<any[]> {
+    return await prisma.flat.findMany({
+      where: {
+        towerId,
+        tower: { organizationId: societyId },
+      },
+      include: {
+        residents: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+      orderBy: { number: "asc" },
     });
   }
 }

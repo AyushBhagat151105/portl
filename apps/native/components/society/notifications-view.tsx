@@ -6,7 +6,8 @@ import { Card, CardTitle, CardDescription } from "../ui/card";
 import { Loader } from "../ui/loader";
 
 export function NotificationsView() {
-  const { data: notifications, isLoading } = useNotificationsQuery();
+  const { data: notificationsData, isLoading } = useNotificationsQuery();
+  const notifications = notificationsData?.data ?? [];
   const readMutation = useMarkNotificationReadMutation();
   const colorScheme = useColorScheme();
 

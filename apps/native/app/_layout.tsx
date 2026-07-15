@@ -14,7 +14,16 @@ export const unstable_settings = {
   initialRouteName: "(drawer)",
 };
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 30,       // 30s — don't refetch if data is under 30s old
+      gcTime: 1000 * 60 * 5,      // 5min — keep unused cache alive for back-nav
+      retry: 1,                   // one retry on network error, then fail fast
+      refetchOnWindowFocus: false, // no-op on native but explicit is better
+    },
+  },
+});
 
 function StackLayout() {
   return (

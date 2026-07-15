@@ -33,7 +33,7 @@
   },
   "devDependencies": {
     "@portl/config": "workspace:*",
-    "turbo": "^2.10.0",
+    "turbo": "^2.10.5",
     "typescript": "catalog:"
   },
   "overrides": {

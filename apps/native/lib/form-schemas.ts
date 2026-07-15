@@ -130,3 +130,17 @@ export type PreApproveGuestFormData = z.infer<typeof preApproveGuestSchema>;
 export type BookAmenityFormData = z.infer<typeof bookAmenitySchema>;
 export type RegisterVisitorFormData = z.infer<typeof registerVisitorSchema>;
 export type VerifyPasscodeFormData = z.infer<typeof verifyPasscodeSchema>;
+
+export const generateDuesSchema = z.object({
+  amount: z
+    .string()
+    .min(1, "Amount is required")
+    .refine((v) => !isNaN(Number(v)) && Number(v) > 0, "Amount must be a positive number"),
+  month: z.string().min(1, "Month is required"),
+  dueDate: z
+    .string()
+    .min(1, "Due date is required")
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format"),
+});
+export type GenerateDuesFormData = z.infer<typeof generateDuesSchema>;
+

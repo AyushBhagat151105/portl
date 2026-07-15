@@ -94,7 +94,8 @@ function VisitorCard({
 export function VisitorLogsView() {
   const [activeTab, setActiveTab] = useState<"active" | "history">("active");
   const { data: activeLogs = [], isLoading: activeLoading } = useActiveVisitorsQuery();
-  const { data: historyLogs = [], isLoading: historyLoading } = useVisitorHistoryQuery();
+  const { data: historyLogsData, isLoading: historyLoading } = useVisitorHistoryQuery();
+  const historyLogs = historyLogsData?.data ?? [];
   const exitMutation = useMarkExitMutation();
   const { showToast } = useToastStore();
   const colorScheme = useColorScheme();

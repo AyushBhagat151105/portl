@@ -9,6 +9,7 @@ import {
   createAmenitySchema,
   createStaffSchema,
   assignFlatSchema,
+  generateDuesSchema,
 } from "../../schemas/society.schema";
 
 export class AdminSocietyController {
@@ -149,6 +150,57 @@ export class AdminSocietyController {
       const staffId = c.req.param("id")!;
       await AdminSocietyService.deleteStaff(staffId);
       return successResponse(c, { deleted: true });
+    } catch (err: any) {
+      return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
+    }
+  }
+
+  // Generate maintenance dues for all flats
+  static async generateDues(c: Context) {
+    try {
+      const societyId = c.get("societyId");
+      const body = await c.req.json();
+      const parsed = generateDuesSchema.safeParse(body);
+      if (!parsed.success) {
+        return errorResponse(c, "Invalid request payload", "VALIDATION_ERROR", 400, parsed.error.format());
+      }
+
+      const dueDateObj = new Date(parsed.data.dueDate);
+      const result = await AdminSocietyService.generateDues(
+        societyId,
+        parsed.data.amount,
+        parsed.data.month,
+        dueDateObj
+      );
+      return successResponse(c, result, 201);
+    } catch (err: any) {
+      return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
+    }
+  }
+
+  // Get maintenance dues logs — paginated with optional month/status filters
+  static async getDues(c: Context) {
+    try {
+      const societyId = c.get("societyId");
+      const { cursor, limit, month, status } = c.req.query();
+      const result = await AdminSocietyService.getDues(societyId, {
+        cursor: cursor || undefined,
+        limit: limit ? parseInt(limit, 10) : undefined,
+        month: month || undefined,
+        status: status || undefined,
+      });
+      return successResponse(c, result);
+    } catch (err: any) {
+      return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
+    }
+  }
+
+  // Mark bill paid offline
+  static async markDuePaidOffline(c: Context) {
+    try {
+      const dueId = c.req.param("id")!;
+      const result = await AdminSocietyService.markDuePaidOffline(dueId);
+      return successResponse(c, result);
     } catch (err: any) {
       return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
     }

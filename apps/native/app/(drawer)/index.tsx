@@ -3,12 +3,13 @@ import React, { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { authClient } from "@/lib/auth-client";
 import { useSocietyStore } from "@/store/useSocietyStore";
-import { useMyMembershipQuery } from "@/queries/society";
+import { useMyMembershipQuery, useRegisterPushTokenMutation } from "@/queries/society";
 
 export default function Index() {
   const { data: session, isPending: sessionPending } = authClient.useSession();
   const { currentRole, setRole } = useSocietyStore();
   const [loadingTimeout, setLoadingTimeout] = React.useState(false);
+  const registerPushTokenMutation = useRegisterPushTokenMutation();
 
   // Only query membership when a session exists
   const {
@@ -33,6 +34,16 @@ export default function Index() {
       if (serverRole === "admin" || serverRole === "owner" || serverRole === "resident" || serverRole === "guard") {
         setRole(serverRole === "owner" ? "admin" : (serverRole as "admin" | "resident" | "guard"));
       }
+
+      // Wire push notification token registration
+      import("@/lib/notifications")
+        .then(({ registerForPushNotificationsAsync }) => registerForPushNotificationsAsync())
+        .then((token) => {
+          if (token) {
+            registerPushTokenMutation.mutate(token);
+          }
+        })
+        .catch(console.warn);
     }
   }, [membership]);
 
