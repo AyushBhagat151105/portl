@@ -14,6 +14,7 @@
     "@portl/env": "workspace:*",
     "@scalar/hono-api-reference": "^0.11.9",
     "better-auth": "catalog:",
+    "cloudinary": "^2.10.0",
     "dotenv": "catalog:",
     "hono": "^4.12.27",
     "razorpay": "^2.9.8",

@@ -39,9 +39,11 @@
         "expo-camera": "~56.0.8",
         "expo-constants": "^56.0.18",
         "expo-device": "^56.0.4",
+        "expo-document-picker": "^57.0.1",
         "expo-file-system": "~56.0.8",
         "expo-font": "^56.0.7",
         "expo-haptics": "^56.0.3",
+        "expo-image-picker": "^57.0.4",
         "expo-linking": "^56.0.14",
         "expo-network": "^56.0.5",
         "expo-notifications": "^56.0.18",
@@ -92,6 +94,7 @@
         "@portl/env": "workspace:*",
         "@scalar/hono-api-reference": "^0.11.9",
         "better-auth": "catalog:",
+        "cloudinary": "^2.10.0",
         "dotenv": "catalog:",
         "hono": "^4.12.27",
         "razorpay": "^2.9.8",
@@ -890,6 +893,8 @@
 
     "clone": ["clone@1.0.4", "", {}, "sha512-JQHZ2QMW6l3aH/j6xCqQThY/9OH4D/9ls34cgkUBiEeocRTU04tHfKPBsUK1PqZCUQM7GiA0IIXJSuXHI64Kbg=="],
 
+    "cloudinary": ["cloudinary@2.10.0", "", { "dependencies": { "lodash": "^4.17.23" } }, "sha512-sY09kYg7wprkndAOjZBAYqFZqwL+SxnEGcAvksOvFA+5upnFn949UjkEkHKNSwkBtW/xRDd0p6NgbSXZcxkI3w=="],
+
     "color": ["color@4.2.3", "", { "dependencies": { "color-convert": "^2.0.1", "color-string": "^1.9.0" } }, "sha512-1rXeuUUiGGrykh+CeBdu5Ie7OJwinCgQY0bc7GCRxy5xVHy+moaqkpL/jqQq0MtQOeYcrqEz4abc5f0KtU7W4A=="],
 
     "color-convert": ["color-convert@2.0.1", "", { "dependencies": { "color-name": "~1.1.4" } }, "sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ=="],
@@ -1036,6 +1041,8 @@
 
     "expo-device": ["expo-device@56.0.4", "", { "dependencies": { "ua-parser-js": "^0.7.33" }, "peerDependencies": { "expo": "*" } }, "sha512-ucVcGPkvBrl2QHuy7XcYex2Y6BETvJ6TREutZrwLGUDnlvbpKS8KfQoNZOpvkyo5Nmm9RrasYQ0CrXmBHho2mg=="],
 
+    "expo-document-picker": ["expo-document-picker@57.0.1", "", { "peerDependencies": { "expo": "*" } }, "sha512-qBwM5oxDZ3I9kwFD3pUE1oK/WNv9artoEKO6UpqhQgNRr0XA1ALRVWYjkF4+ge9lUNDRehjTm/jenINkzqg84g=="],
+
     "expo-file-system": ["expo-file-system@56.0.8", "", { "peerDependencies": { "expo": "*", "react-native": "*" } }, "sha512-NrH41/8snGIBSbYicwVLB4txPdgCATd7ZYhMAGS3YJZ9GbnduhlAoV4/YCbGayjrbpE9bJb/6wegPL/zmvRMnQ=="],
 
     "expo-font": ["expo-font@56.0.7", "", { "dependencies": { "fontfaceobserver": "^2.1.0" }, "peerDependencies": { "expo": "*", "react": "*", "react-native": "*" } }, "sha512-hpU/vRwPzsby9lPGkA4blDqLIIXYzoWnCZHr6PxvcWbY/uPObAiyhh6q+e0WYsB65SthK+PLH95jEnVag7fwEg=="],
@@ -1043,6 +1050,10 @@
     "expo-glass-effect": ["expo-glass-effect@56.0.4", "", { "peerDependencies": { "expo": "*", "react": "*", "react-native": "*" } }, "sha512-xI9rXtDwi7RW82uAlfyaXO6+k21ApWJ2tHAWYqPr/FjfmZbKsgNJ4Q0iZzGPCwboqjTGxaRZ61SZxBl8hDt5iA=="],
 
     "expo-haptics": ["expo-haptics@56.0.3", "", { "peerDependencies": { "expo": "*" } }, "sha512-ycoahZJnR9tWAVh/0mJYxbETtHRYaWjiWS8cHlP6aDGU6Q6Y8rZ5NKsuBwWw6HR2Pe30mfVFgbF2HrBR6gtYmw=="],
+
+    "expo-image-loader": ["expo-image-loader@57.0.1", "", { "peerDependencies": { "expo": "*" } }, "sha512-uhrZKLT/cTl2mXyR28kPpVkS5O+PK9N1QA/07IFM4f5T4g0lTW1JHT3NEWwEEsGFldPmVX4j7LwUVVZxE+woug=="],
+
+    "expo-image-picker": ["expo-image-picker@57.0.4", "", { "dependencies": { "expo-image-loader": "~57.0.1" }, "peerDependencies": { "expo": "*" } }, "sha512-ypuO99+rMqrjYlTt8EqJ415ff+qIj/gPyEbcOW8g6CFtC6Ljk8OWYyiEFKZg3989Rdljla/fN3IWqXOXKN/2og=="],
 
     "expo-keep-awake": ["expo-keep-awake@56.0.3", "", { "peerDependencies": { "expo": "*", "react": "*" } }, "sha512-CLMJXtEiMKknD3Rpm8CRwE6ZJUzu2yCEmRk1sgfHAJ1zIbuEWY3dpPDubtsnuzWm+2k6Sru+yaFbYsvPWmTiBA=="],
 
@@ -1285,6 +1296,8 @@
     "lightningcss-win32-x64-msvc": ["lightningcss-win32-x64-msvc@1.30.1", "", { "os": "win32", "cpu": "x64" }, "sha512-PVqXh48wh4T53F/1CCu8PIPCxLzWyCnn/9T5W1Jpmdy5h9Cwd+0YQS6/LwhHXSafuc61/xg9Lv5OrCby6a++jg=="],
 
     "locate-path": ["locate-path@5.0.0", "", { "dependencies": { "p-locate": "^4.1.0" } }, "sha512-t7hw9pI+WvuwNJXwk5zVHpyhIqzg2qTlklJOf0mVxGSbe3Fp2VieZcduNYjaLDoy6p9uGpQEGWG87WpMKlNq8g=="],
+
+    "lodash": ["lodash@4.18.1", "", {}, "sha512-dMInicTPVE8d1e5otfwmmjlxkZoUpiVLwyeTdUsi/Caj/gfzzblBcCE5sRHV/AsjuCmxWrte2TNGSYuCeCq+0Q=="],
 
     "lodash.debounce": ["lodash.debounce@4.0.8", "", {}, "sha512-FT1yDzDYEoYWhnSGnpE/4Kj1fLZkDFyqRb7fNt6FdYOSxlUWAtp42Eh6Wb0rGIv/m9Bgo7x4GhQbm5Ys4SG5ow=="],
 

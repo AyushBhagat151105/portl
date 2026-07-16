@@ -24,6 +24,12 @@ router.get("/towers/:id/flats", roleMiddleware(["admin"]), CommonSocietyControll
 // Notification settings & push token endpoints
 router.post("/notifications/register-token", roleMiddleware(["resident", "guard", "admin"]), CommonSocietyController.registerPushToken);
 router.get("/notifications", roleMiddleware(["resident", "guard", "admin"]), CommonSocietyController.getNotifications);
+
+// Media files endpoints
+router.get("/media/signature", roleMiddleware(["resident", "admin"]), CommonSocietyController.getUploadSignature);
+router.get("/media/aadhar-url", roleMiddleware(["resident", "admin"]), CommonSocietyController.getAadharUrl);
+router.delete("/media/avatar", roleMiddleware(["resident", "admin"]), CommonSocietyController.deleteAvatar);
+router.delete("/media/aadhar", roleMiddleware(["resident", "admin"]), CommonSocietyController.deleteAadhar);
 router.patch("/notifications/:id/read", roleMiddleware(["resident", "guard", "admin"]), CommonSocietyController.markNotificationRead);
 
 export default router;

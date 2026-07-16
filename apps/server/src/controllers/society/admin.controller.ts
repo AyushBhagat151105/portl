@@ -355,4 +355,43 @@ export class AdminSocietyController {
       return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
     }
   }
+
+  // Get temporary signed download URL for staff Aadhar card
+  static async getStaffAadharUrl(c: Context) {
+    try {
+      const societyId = c.get("societyId");
+      const staffId = c.req.param("id")!;
+      const url = await AdminSocietyService.getStaffAadharUrl(societyId, staffId);
+      if (!url) {
+        return errorResponse(c, "Staff Aadhar document not found", "NOT_FOUND", 404);
+      }
+      return successResponse(c, { url });
+    } catch (err: any) {
+      return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
+    }
+  }
+
+  // Delete staff profile photo
+  static async deleteStaffAvatar(c: Context) {
+    try {
+      const societyId = c.get("societyId");
+      const staffId = c.req.param("id")!;
+      const result = await AdminSocietyService.deleteStaffAvatar(societyId, staffId);
+      return successResponse(c, { success: result });
+    } catch (err: any) {
+      return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
+    }
+  }
+
+  // Delete staff Aadhar document
+  static async deleteStaffAadhar(c: Context) {
+    try {
+      const societyId = c.get("societyId");
+      const staffId = c.req.param("id")!;
+      const result = await AdminSocietyService.deleteStaffAadhar(societyId, staffId);
+      return successResponse(c, { success: result });
+    } catch (err: any) {
+      return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
+    }
+  }
 }

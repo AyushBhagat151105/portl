@@ -1,6 +1,7 @@
 import prisma from "@portl/db";
 import type { Visitor } from "@portl/db";
 import { decryptText } from "../../lib/crypto";
+import { destroyAsset, extractPublicId } from "../../lib/cloudinary";
 
 export class ResidentSocietyService {
   // 1. Get resident's flats
@@ -277,10 +278,30 @@ export class ResidentSocietyService {
       phone?: string | null;
       aadharNumber?: string | null;
       image?: string | null;
+      aadharPublicId?: string | null;
       vehicles?: { plateNumber: string; makeModel?: string | null; type: "CAR" | "BIKE" }[];
     }
   ): Promise<any> {
     return await prisma.$transaction(async (tx) => {
+      // Fetch current values to check for changes
+      const currentUser = await tx.user.findUnique({
+        where: { id: userId },
+        select: { image: true, aadharPublicId: true },
+      });
+
+      // If new avatar image is specified and it has changed, delete old one
+      if (data.image !== undefined && data.image !== currentUser?.image && currentUser?.image) {
+        const oldPublicId = extractPublicId(currentUser.image);
+        if (oldPublicId) {
+          await destroyAsset(oldPublicId, false);
+        }
+      }
+
+      // If new aadharPublicId is specified and it has changed, delete old one
+      if (data.aadharPublicId !== undefined && data.aadharPublicId !== currentUser?.aadharPublicId && currentUser?.aadharPublicId) {
+        await destroyAsset(currentUser.aadharPublicId, true);
+      }
+
       // Update User details
       const user = await tx.user.update({
         where: { id: userId },
@@ -289,6 +310,7 @@ export class ResidentSocietyService {
           email: data.email,
           aadharNumber: data.aadharNumber,
           image: data.image,
+          aadharPublicId: data.aadharPublicId,
         },
       });
 

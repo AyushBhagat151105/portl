@@ -164,13 +164,62 @@ export class CommonSocietyController {
 
   // Lazy-load flats with residents for a specific tower
   static async getTowerFlats(c: Context) {
-  try {
-    const societyId = c.get("societyId");
-    const towerId = c.req.param("id")!;
-    const result = await CommonSocietyService.getTowerFlats(towerId, societyId);
-    return successResponse(c, result);
-  } catch (err: any) {
-    return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
+    try {
+      const societyId = c.get("societyId");
+      const towerId = c.req.param("id")!;
+      const result = await CommonSocietyService.getTowerFlats(towerId, societyId);
+      return successResponse(c, result);
+    } catch (err: any) {
+      return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
+    }
   }
-}
+
+  // Get Cloudinary upload signature
+  static async getUploadSignature(c: Context) {
+    try {
+      const userId = c.get("userId");
+      const folder = c.req.query("folder") || "profiles";
+      const isPrivate = c.req.query("type") === "private";
+      const result = await CommonSocietyService.getUploadSignature(userId, folder, isPrivate);
+      return successResponse(c, result);
+    } catch (err: any) {
+      return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
+    }
+  }
+
+  // Get temporary signed download URL for Aadhar card
+  static async getAadharUrl(c: Context) {
+    try {
+      const userId = c.get("userId");
+      const url = await CommonSocietyService.getAadharUrl(userId);
+      if (!url) {
+        return errorResponse(c, "Document not found", "NOT_FOUND", 404);
+      }
+      return successResponse(c, { url });
+    } catch (err: any) {
+      return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
+    }
+  }
+
+  // Delete profile picture avatar
+  static async deleteAvatar(c: Context) {
+    try {
+      const userId = c.get("userId");
+      await CommonSocietyService.deleteAvatar(userId);
+      return successResponse(c, { success: true });
+    } catch (err: any) {
+      return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
+    }
+  }
+
+  // Delete Aadhar card
+  static async deleteAadhar(c: Context) {
+    try {
+      const userId = c.get("userId");
+      await CommonSocietyService.deleteAadhar(userId);
+      return successResponse(c, { success: true });
+    } catch (err: any) {
+      return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
+    }
+  }
 }

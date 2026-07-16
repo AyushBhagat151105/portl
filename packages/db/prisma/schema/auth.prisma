@@ -24,6 +24,7 @@ model User {
   notifications      Notification[]
   notificationJobs   NotificationJob[]
   aadharNumber       String?
+  aadharPublicId     String?
   vehicleNumber      String?
 
   @@unique([email])

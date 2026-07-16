@@ -106,6 +106,7 @@ export const createStaffSchema = z.object({
   role: z.string().min(1, "Staff role is required"),
   code: z.string().optional(),
   aadharNumber: z.string().optional().nullable(),
+  aadharPublicId: z.string().optional().nullable(),
   vehicleNumber: z.string().optional().nullable(),
   avatar: z.string().optional().nullable(),
 });
@@ -116,6 +117,7 @@ export const updateStaffSchema = z.object({
   role: z.string().min(1, "Staff role is required").optional(),
   code: z.string().optional().nullable(),
   aadharNumber: z.string().optional().nullable(),
+  aadharPublicId: z.string().optional().nullable(),
   vehicleNumber: z.string().optional().nullable(),
   avatar: z.string().optional().nullable(),
 });

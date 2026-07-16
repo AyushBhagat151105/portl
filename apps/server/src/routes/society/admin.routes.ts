@@ -37,6 +37,9 @@ router.post("/amenities", AdminSocietyController.createAmenity);
 router.post("/staff", AdminSocietyController.createStaff);
 router.put("/staff/:id", AdminSocietyController.updateStaff);
 router.delete("/staff/:id", AdminSocietyController.deleteStaff);
+router.get("/staff/:id/aadhar-url", AdminSocietyController.getStaffAadharUrl);
+router.delete("/staff/:id/avatar", AdminSocietyController.deleteStaffAvatar);
+router.delete("/staff/:id/aadhar", AdminSocietyController.deleteStaffAadhar);
 
 // Dues & billing management
 router.get("/dues", AdminSocietyController.getDues);

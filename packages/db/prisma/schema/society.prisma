@@ -182,6 +182,7 @@ model StaffProvider {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   aadharNumber   String?
+  aadharPublicId String?
   vehicleNumber  String?
   avatar         String?
   createdAt      DateTime     @default(now())

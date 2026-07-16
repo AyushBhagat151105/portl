@@ -161,12 +161,14 @@ export function useUpdateProfileMutation() {
       phone?: string | null;
       aadharNumber?: string | null;
       image?: string | null;
+      aadharPublicId?: string | null;
       vehicles?: { plateNumber: string; makeModel?: string | null; type: "CAR" | "BIKE" }[];
     }) => {
       const res = await api.put("/api/society/resident/profile", data);
       return res.data?.data;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
       queryClient.invalidateQueries({ queryKey: queryKeys.membership() });
       queryClient.invalidateQueries({ queryKey: queryKeys.members() });
     },
@@ -192,6 +194,50 @@ export function useNotifyVehicleBlockingMutation() {
     mutationFn: async (vehicleId: string) => {
       const res = await api.post(`/api/society/resident/vehicles/${vehicleId}/notify-blocking`);
       return res.data?.data;
+    },
+  });
+}
+
+// 14. Get temporary signed download URL for Aadhar card
+export function useAadharSignedUrlQuery(enabled: boolean) {
+  return useQuery({
+    queryKey: ["profile", "aadhar-url"],
+    queryFn: async () => {
+      const res = await api.get("/api/society/media/aadhar-url");
+      return res.data?.data?.url ?? null;
+    },
+    enabled,
+    staleTime: 1000 * 60 * 5, // 5 mins
+  });
+}
+
+// 15. Delete profile picture avatar
+export function useDeleteAvatarMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await api.delete("/api/society/media/avatar");
+      return res.data?.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.membership() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.members() });
+    },
+  });
+}
+
+// 16. Delete Aadhar card file
+export function useDeleteAadharMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await api.delete("/api/society/media/aadhar");
+      return res.data?.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      queryClient.invalidateQueries({ queryKey: ["profile", "aadhar-url"] });
     },
   });
 }

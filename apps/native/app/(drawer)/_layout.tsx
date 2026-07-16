@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Drawer, DrawerContentScrollView, DrawerItemList } from "expo-router/drawer";
 import { useThemeColor } from "heroui-native";
 import React from "react";
-import { View, Text, Pressable, ActivityIndicator } from "react-native";
+import { View, Text, Pressable, ActivityIndicator, Image } from "react-native";
 import { authClient } from "@/lib/auth-client";
 import { useSocietyStore } from "@/store/useSocietyStore";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -16,19 +16,34 @@ function CustomDrawerContent(props: any) {
   const { isLight } = useAppTheme();
   const insets = useSafeAreaInsets();
 
+  const initials = session?.user?.name
+    ? session.user.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()
+    : "U";
+
   return (
     <View style={{ flex: 1, backgroundColor: isLight ? "#fcfbf9" : "#1c1917" }}>
       {/* 1. Header Profile block */}
       <View
         style={{ paddingTop: Math.max(insets.top, 16) }}
-        className="px-5 pb-6 border-b border-border-light dark:border-border-dark bg-muted-light/20 dark:bg-muted-dark/20"
+        className="px-5 pb-6 border-b border-border-light dark:border-border-dark bg-muted-light/20 dark:bg-muted-dark/20 flex-row items-center gap-3"
       >
-        <Text className="text-foreground-light dark:text-foreground-dark text-lg font-bold">
-          {session?.user?.name || "Portl User"}
-        </Text>
-        <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs mt-1">
-          {session?.user?.email || "user@portl.com"}
-        </Text>
+        <View className="w-11 h-11 rounded-full overflow-hidden bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark justify-center items-center">
+          {session?.user?.image ? (
+            <Image source={{ uri: session.user.image }} className="w-full h-full" />
+          ) : (
+            <Text className="text-foreground-light dark:text-foreground-dark text-sm font-black">
+              {initials}
+            </Text>
+          )}
+        </View>
+        <View className="flex-1">
+          <Text className="text-foreground-light dark:text-foreground-dark text-sm font-bold leading-4">
+            {session?.user?.name || "Portl User"}
+          </Text>
+          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs mt-0.5" numberOfLines={1}>
+            {session?.user?.email || "user@portl.com"}
+          </Text>
+        </View>
       </View>
 
       {/* 2. Menu Navigation Links List (Scrollable) */}

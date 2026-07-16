@@ -109,6 +109,7 @@ export function useCreateStaffMutation() {
       role: string;
       code?: string;
       aadharNumber?: string;
+      aadharPublicId?: string;
       vehicleNumber?: string;
       avatar?: string;
     }) => {
@@ -385,3 +386,46 @@ export function useCreateFestivalMutation() {
     },
   });
 }
+
+// Staff Aadhar signed URL query
+export function useStaffAadharSignedUrlQuery(staffId: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: ["staff", staffId, "aadhar-url"],
+    queryFn: async () => {
+      if (!staffId) return null;
+      const res = await api.get(`/api/society/admin/staff/${staffId}/aadhar-url`);
+      return res.data?.data?.url ?? null;
+    },
+    enabled: enabled && !!staffId,
+    staleTime: 1000 * 60 * 5, // 5 mins
+  });
+}
+
+// Delete staff avatar mutation
+export function useDeleteStaffAvatarMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (staffId: string) => {
+      const res = await api.delete(`/api/society/admin/staff/${staffId}/avatar`);
+      return res.data?.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.staff() });
+    },
+  });
+}
+
+// Delete staff Aadhar mutation
+export function useDeleteStaffAadharMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (staffId: string) => {
+      const res = await api.delete(`/api/society/admin/staff/${staffId}/aadhar`);
+      return res.data?.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.staff() });
+    },
+  });
+}
+
