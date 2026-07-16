@@ -1,14 +1,16 @@
 import React from "react";
 import { ScrollView, Text, View, Pressable, ActivityIndicator, useColorScheme } from "react-native";
-import { Chip } from "heroui-native";
 import { Ionicons } from "@expo/vector-icons";
+import { Chip } from "heroui-native";
 import {
-  usePendingGateCallsQuery,
-  useRespondVisitorMutation,
   useNoticesQuery,
   usePollsQuery,
   useVotePollMutation,
+  usePendingGateCallsQuery,
+  useRespondVisitorMutation,
 } from "../../queries/society";
+import { useClosePollMutation } from "../../queries/admin";
+import { useSocietyStore } from "@/store/useSocietyStore";
 import { useToastStore } from "../../store/useToastStore";
 import { ScreenContainer } from "../ui/screen-container";
 import { Card, CardTitle, CardDescription } from "../ui/card";
@@ -144,6 +146,8 @@ function NoticesList() {
 function PollsList() {
   const { data: polls, isLoading } = usePollsQuery();
   const voteMutation = useVotePollMutation();
+  const closeMutation = useClosePollMutation();
+  const { currentRole } = useSocietyStore();
   const { showToast } = useToastStore();
   const colorScheme = useColorScheme();
 
@@ -153,6 +157,15 @@ function PollsList() {
       showToast("Your vote has been recorded!", "success");
     } catch (err: any) {
       showToast(err.message || "Failed to vote in poll", "error");
+    }
+  };
+
+  const handleClosePoll = async (pollId: string) => {
+    try {
+      await closeMutation.mutateAsync(pollId);
+      showToast("Poll closed successfully!", "success");
+    } catch (err: any) {
+      showToast(err.message || "Failed to close poll", "error");
     }
   };
 
@@ -167,14 +180,30 @@ function PollsList() {
     );
   }
 
+  const primaryColor = colorScheme === "dark" ? "#f97316" : "#b45309";
+
   return polls.map((poll: any) => {
     const hasVoted = poll.userVotedIndex !== null;
+    const isClosed = poll.status === "CLOSED";
+    const showResults = hasVoted || currentRole === "admin" || isClosed;
 
     return (
-      <Card key={poll.id} className="mb-3">
-        <Text className="text-foreground-light dark:text-foreground-dark text-base font-bold mb-3">
+      <Card key={poll.id} className="mb-3.5 gap-2.5">
+        <View className="flex-row justify-between items-center mb-1">
+          <View className="bg-muted-light dark:bg-muted-dark px-2 py-0.5 rounded border border-border-light dark:border-border-dark">
+            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[9px] uppercase tracking-wider font-bold">
+              {isClosed ? "Closed" : "Active"}
+            </Text>
+          </View>
+          {isClosed && (
+            <Ionicons name="lock-closed-outline" size={14} color="#ef4444" />
+          )}
+        </View>
+
+        <Text className="text-foreground-light dark:text-foreground-dark text-base font-bold mb-1">
           {poll.question}
         </Text>
+
         <View className="gap-2.5">
           {poll.options.map((opt: string, idx: number) => {
             const votes = poll.results[idx] || 0;
@@ -184,7 +213,7 @@ function PollsList() {
             return (
               <Pressable
                 key={idx}
-                disabled={hasVoted || voteMutation.isPending}
+                disabled={hasVoted || isClosed || voteMutation.isPending}
                 onPress={() => handleVote(poll.id, idx)}
                 className={`rounded-xl overflow-hidden border ${
                   isSelected
@@ -192,7 +221,7 @@ function PollsList() {
                     : "border-border-light dark:border-border-dark"
                 } bg-muted-light/50 dark:bg-muted-dark/50`}
               >
-                {hasVoted && (
+                {showResults && (
                   <View
                     className="absolute top-0 bottom-0 left-0 bg-primary-light/10 dark:bg-primary-dark/10"
                     style={{ width: `${pct}%` }}
@@ -207,7 +236,7 @@ function PollsList() {
                   >
                     {opt}
                   </Text>
-                  {hasVoted && (
+                  {showResults && (
                     <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-semibold">
                       {pct}% ({votes})
                     </Text>
@@ -217,9 +246,24 @@ function PollsList() {
             );
           })}
         </View>
-        <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs mt-3 text-right">
-          Total Votes: {poll.totalVotes}
-        </Text>
+
+        <View className="flex-row justify-between items-center mt-2.5">
+          {currentRole === "admin" && !isClosed ? (
+            <Pressable
+              onPress={() => handleClosePoll(poll.id)}
+              disabled={closeMutation.isPending}
+              className="bg-rose-500/10 border border-rose-500/25 px-3 py-1.5 rounded-lg flex-row items-center gap-1 active:opacity-75"
+            >
+              <Ionicons name="power" size={12} color="#f43f5e" />
+              <Text className="text-rose-500 text-xs font-bold">End Poll</Text>
+            </Pressable>
+          ) : (
+            <View />
+          )}
+          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-mono">
+            Total Votes: {poll.totalVotes}
+          </Text>
+        </View>
       </Card>
     );
   });

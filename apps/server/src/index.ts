@@ -11,6 +11,7 @@ import commonRouter from "./routes/society/common.routes";
 import adminRouter from "./routes/society/admin.routes";
 import guardRouter from "./routes/society/guard.routes";
 import residentRouter from "./routes/society/resident.routes";
+import treasuryRouter from "./routes/society/treasury.routes";
 
 const app = new Hono();
 
@@ -33,6 +34,7 @@ app.get("/openapi.json", (c) => c.json(openapiSpec));
 app.get("/reference", Scalar({ url: "/openapi.json" }));
 
 // Mount role-specific society routes
+app.route("/api/society/admin/treasury", treasuryRouter);
 app.route("/api/society/admin", adminRouter);
 app.route("/api/society/guard", guardRouter);
 app.route("/api/society/resident", residentRouter);

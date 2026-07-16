@@ -17,6 +17,12 @@ model Flat {
   towerId         String
   tower           Tower            @relation(fields: [towerId], references: [id], onDelete: Cascade)
   residents       User[]           @relation("FlatResidents")
+  ownerId         String?
+  owner           User?            @relation("FlatOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  occupancyStatus String           @default("VACANT") // "VACANT", "OWNER_OCCUPIED", "RENTED"
+  memberCount     Int              @default(0)
+  vehicleMemberCount Int           @default(0)
+  vehicles        Vehicle[]
   complaints      Complaint[]
   visitors        Visitor[]
   maintenanceDues MaintenanceDue[]
@@ -51,7 +57,8 @@ model AmenityBooking {
   bookedBy   User     @relation(fields: [bookedById], references: [id], onDelete: Cascade)
   date       DateTime
   timeslot   String   // e.g. "10:00 AM - 12:00 PM"
-  status     String   @default("CONFIRMED") // CONFIRMED, CANCELLED
+  status     String   @default("PENDING") // PENDING, APPROVED, REJECTED, CANCELLED
+  purpose    String?  // e.g. "Family Function - Birthday Party"
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -80,6 +87,7 @@ model Poll {
   id             String       @id @default(uuid())
   question       String
   options        String[]
+  status         String       @default("ACTIVE") // ACTIVE, CLOSED
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   votes          PollVote[]
@@ -173,6 +181,9 @@ model StaffProvider {
   code           String?      // Optional card/badge ID
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  aadharNumber   String?
+  vehicleNumber  String?
+  avatar         String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -257,4 +268,79 @@ model NotificationJob {
   @@index([status])
   @@map("notification_job")
 }
+
+model Vehicle {
+  id             String       @id @default(uuid())
+  plateNumber    String       @unique // e.g., "MH12AB1234"
+  makeModel      String?      // e.g., "White Honda City"
+  type           String       // "CAR", "BIKE"
+  flatId         String?
+  flat           Flat?        @relation(fields: [flatId], references: [id], onDelete: Cascade)
+  ownerId        String
+  owner          User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([flatId])
+  @@index([ownerId])
+  @@index([organizationId])
+  @@map("vehicle")
+}
+
+model Budget {
+  id              String       @id @default(uuid())
+  title           String
+  allocatedAmount Float
+  spentAmount     Float        @default(0)
+  startDate       DateTime
+  endDate         DateTime
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  expenses        Expense[]
+  festivals       Festival[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@map("budget")
+}
+
+model Expense {
+  id              String       @id @default(uuid())
+  title           String
+  amount          Float
+  category        String       // "MAINTENANCE", "UTILITIES", "SALARIES", "FESTIVAL", "REPAIRS", "OTHERS"
+  description     String?
+  date            DateTime
+  budgetId        String?
+  budget          Budget?      @relation(fields: [budgetId], references: [id], onDelete: SetNull)
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([budgetId])
+  @@index([organizationId])
+  @@map("expense")
+}
+
+model Festival {
+  id              String       @id @default(uuid())
+  name            String
+  description     String?
+  date            DateTime
+  budgetId        String?
+  budget          Budget?      @relation(fields: [budgetId], references: [id], onDelete: SetNull)
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([budgetId])
+  @@index([organizationId])
+  @@map("festival")
+}
+
 

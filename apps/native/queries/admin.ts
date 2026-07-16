@@ -30,6 +30,20 @@ export function useCreatePollMutation() {
   });
 }
 
+// 2b. Close community poll
+export function useClosePollMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (pollId: string) => {
+      const res = await api.patch(`/api/society/admin/polls/${pollId}/close`);
+      return res.data?.data;
+    },
+    onSuccess: () => {
+      return queryClient.invalidateQueries({ queryKey: queryKeys.polls() });
+    },
+  });
+}
+
 // 3. Update support ticket status
 export function useUpdateComplaintMutation() {
   const queryClient = useQueryClient();
@@ -89,7 +103,15 @@ export function useCreateAmenityMutation() {
 export function useCreateStaffMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { name: string; phone: string; role: string; code?: string }) => {
+    mutationFn: async (data: {
+      name: string;
+      phone: string;
+      role: string;
+      code?: string;
+      aadharNumber?: string;
+      vehicleNumber?: string;
+      avatar?: string;
+    }) => {
       const res = await api.post("/api/society/admin/staff", data);
       return res.data?.data;
     },
@@ -164,6 +186,202 @@ export function useMarkDuePaidMutation() {
     },
     onSuccess: () => {
       return queryClient.invalidateQueries({ queryKey: ["dues"] });
+    },
+  });
+}
+
+// 13. Update Staff details
+export function useUpdateStaffMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ staffId, data }: { staffId: string; data: any }) => {
+      const res = await api.put(`/api/society/admin/staff/${staffId}`, data);
+      return res.data?.data;
+    },
+    onSuccess: () => {
+      return queryClient.invalidateQueries({ queryKey: queryKeys.staff() });
+    },
+  });
+}
+
+// 14. Create Resident Manually
+export function useCreateResidentMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { name: string; email: string; phone?: string; aadharNumber?: string; image?: string }) => {
+      const res = await api.post("/api/society/admin/residents", data);
+      return res.data?.data;
+    },
+    onSuccess: () => {
+      return queryClient.invalidateQueries({ queryKey: queryKeys.members() });
+    },
+  });
+}
+
+// 15. Update Resident Profile (Admin)
+export function useUpdateResidentMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ userId, data }: { userId: string; data: any }) => {
+      const res = await api.put(`/api/society/admin/residents/${userId}`, data);
+      return res.data?.data;
+    },
+    onSuccess: () => {
+      return queryClient.invalidateQueries({ queryKey: queryKeys.members() });
+    },
+  });
+}
+
+// 16. Delete/Remove Resident
+export function useDeleteResidentMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await api.delete(`/api/society/admin/residents/${userId}`);
+      return res.data?.data;
+    },
+    onSuccess: () => {
+      return queryClient.invalidateQueries({ queryKey: queryKeys.members() });
+    },
+  });
+}
+
+// 17. Allocate Flat occupancy & counts
+export function useAllocateFlatMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      flatId: string;
+      ownerId?: string | null;
+      occupancyStatus: "VACANT" | "OWNER_OCCUPIED" | "RENTED";
+      memberCount?: number;
+      vehicleMemberCount?: number;
+      residentIds?: string[];
+    }) => {
+      const res = await api.put("/api/society/admin/flats/allocate", data);
+      return res.data?.data;
+    },
+    onSuccess: () => {
+      return queryClient.invalidateQueries({ queryKey: queryKeys.towers() });
+    },
+  });
+}
+
+// 18. Update Razorpay Payment configuration
+export function usePaymentConfigQuery() {
+  return useQuery({
+    queryKey: ["paymentConfig"],
+    queryFn: async () => {
+      const res = await api.get("/api/society/admin/payment/config");
+      return res.data?.data;
+    },
+  });
+}
+
+export function useUpdatePaymentConfigMutation() {
+  return useMutation({
+    mutationFn: async (data: { razorpayKeyId: string; razorpayKeySecret: string }) => {
+      const res = await api.put("/api/society/admin/payment/config", data);
+      return res.data?.data;
+    },
+  });
+}
+
+// 19. Retrieve event booking requests (Admin)
+export function useAdminBookingsQuery() {
+  return useQuery({
+    queryKey: queryKeys.bookings(),
+    queryFn: async () => {
+      const res = await api.get("/api/society/admin/bookings");
+      return res.data?.data ?? [];
+    },
+  });
+}
+
+// 20. Respond to event bookings request
+export function useRespondBookingMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ bookingId, status }: { bookingId: string; status: "APPROVED" | "REJECTED" | "CANCELLED" }) => {
+      const res = await api.patch(`/api/society/admin/bookings/${bookingId}/respond`, { status });
+      return res.data?.data;
+    },
+    onSuccess: () => {
+      return queryClient.invalidateQueries({ queryKey: queryKeys.bookings() });
+    },
+  });
+}
+
+// 21. Treasury Budgets
+export function useBudgetsQuery() {
+  return useQuery({
+    queryKey: queryKeys.treasury.budgets(),
+    queryFn: async () => {
+      const res = await api.get("/api/society/admin/treasury/budgets");
+      return res.data?.data ?? [];
+    },
+  });
+}
+
+export function useCreateBudgetMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { title: string; allocatedAmount: number; startDate: string; endDate: string }) => {
+      const res = await api.post("/api/society/admin/treasury/budgets", data);
+      return res.data?.data;
+    },
+    onSuccess: () => {
+      return queryClient.invalidateQueries({ queryKey: queryKeys.treasury.budgets() });
+    },
+  });
+}
+
+// 22. Treasury Expenses
+export function useExpensesQuery(category?: string) {
+  return useQuery({
+    queryKey: queryKeys.treasury.expenses(category),
+    queryFn: async () => {
+      const res = await api.get("/api/society/admin/treasury/expenses", { params: { category } });
+      return res.data?.data ?? [];
+    },
+  });
+}
+
+export function useCreateExpenseMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { title: string; amount: number; category: string; description?: string; date: string; budgetId?: string }) => {
+      const res = await api.post("/api/society/admin/treasury/expenses", data);
+      return res.data?.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.treasury.expenses() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.treasury.budgets() });
+    },
+  });
+}
+
+// 23. Treasury Festivals
+export function useFestivalsQuery() {
+  return useQuery({
+    queryKey: queryKeys.treasury.festivals(),
+    queryFn: async () => {
+      const res = await api.get("/api/society/admin/treasury/festivals");
+      return res.data?.data ?? [];
+    },
+  });
+}
+
+export function useCreateFestivalMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { name: string; description?: string; date: string; allocatedBudget?: number }) => {
+      const res = await api.post("/api/society/admin/treasury/festivals", data);
+      return res.data?.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.treasury.festivals() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.treasury.budgets() });
     },
   });
 }

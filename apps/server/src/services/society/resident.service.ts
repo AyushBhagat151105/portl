@@ -1,5 +1,6 @@
 import prisma from "@portl/db";
 import type { Visitor } from "@portl/db";
+import { decryptText } from "../../lib/crypto";
 
 export class ResidentSocietyService {
   // 1. Get resident's flats
@@ -12,6 +13,21 @@ export class ResidentSocietyService {
       },
       include: {
         tower: true,
+      },
+    });
+  }
+
+  // 1b. Get current resident's profile details
+  static async getMyProfile(userId: string): Promise<any> {
+    return await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        vehicles: true,
+        flats: {
+          include: {
+            tower: true,
+          },
+        },
       },
     });
   }
@@ -76,14 +92,14 @@ export class ResidentSocietyService {
     });
   }
 
-  // 5. Reserve an amenity booking timeslot (prevents duplicate slots)
-  static async bookAmenity(userId: string, data: { amenityId: string; date: Date; timeslot: string }): Promise<any> {
+  // 5. Reserve an amenity booking timeslot (prevents duplicate approved slots)
+  static async bookAmenity(userId: string, data: { amenityId: string; date: Date; timeslot: string; purpose?: string }): Promise<any> {
     const existing = await prisma.amenityBooking.findFirst({
       where: {
         amenityId: data.amenityId,
         date: data.date,
         timeslot: data.timeslot,
-        status: "CONFIRMED",
+        status: "APPROVED",
       },
     });
 
@@ -97,6 +113,8 @@ export class ResidentSocietyService {
         bookedById: userId,
         date: data.date,
         timeslot: data.timeslot,
+        purpose: data.purpose,
+        status: "PENDING",
       },
       include: {
         amenity: true,
@@ -136,7 +154,7 @@ export class ResidentSocietyService {
     });
   }
 
-  // 8. Create Razorpay order for due payment
+  // 8. Create Razorpay order for due payment using Dynamic Credentials
   static async createRazorpayOrder(dueId: string, userId: string): Promise<any> {
     const due = await prisma.maintenanceDue.findUnique({
       where: { id: dueId },
@@ -155,10 +173,23 @@ export class ResidentSocietyService {
     const isResident = due.flat.residents.some((r) => r.id === userId);
     if (!isResident) throw new Error("Unauthorized to pay this due");
 
+    // Dynamic credentials lookup
+    const org = await prisma.organization.findUnique({
+      where: { id: due.organizationId },
+    });
+
+    const keyId = org?.razorpayKeyId || process.env.RAZORPAY_KEY_ID;
+    const keySecretEncrypted = org?.razorpayKeySecret;
+    const keySecret = keySecretEncrypted ? decryptText(keySecretEncrypted) : process.env.RAZORPAY_KEY_SECRET;
+
+    if (!keyId || !keySecret) {
+      throw new Error("Razorpay payment credentials are not configured for this society");
+    }
+
     const Razorpay = require("razorpay");
     const razorpay = new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID,
-      key_secret: process.env.RAZORPAY_KEY_SECRET,
+      key_id: keyId,
+      key_secret: keySecret,
     });
 
     const order = await razorpay.orders.create({
@@ -178,7 +209,7 @@ export class ResidentSocietyService {
       orderId: order.id,
       amount: order.amount,
       currency: order.currency,
-      keyId: process.env.RAZORPAY_KEY_ID,
+      keyId: keyId,
     };
   }
 
@@ -207,8 +238,18 @@ export class ResidentSocietyService {
     const isResident = due.flat.residents.some((r) => r.id === userId);
     if (!isResident) throw new Error("Unauthorized to pay this due");
 
+    const org = await prisma.organization.findUnique({
+      where: { id: due.organizationId },
+    });
+
+    const keySecretEncrypted = org?.razorpayKeySecret;
+    const keySecret = keySecretEncrypted ? decryptText(keySecretEncrypted) : process.env.RAZORPAY_KEY_SECRET;
+    if (!keySecret) {
+      throw new Error("Razorpay key secret not found");
+    }
+
     const crypto = require("crypto");
-    const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET);
+    const hmac = crypto.createHmac("sha256", keySecret);
     hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
     const generatedSignature = hmac.digest("hex");
 
@@ -225,5 +266,135 @@ export class ResidentSocietyService {
         razorpaySignature: razorpay_signature,
       },
     });
+  }
+
+  // 10. Update Resident Profile
+  static async updateMyProfile(
+    userId: string,
+    data: {
+      name?: string;
+      email?: string;
+      phone?: string | null;
+      aadharNumber?: string | null;
+      image?: string | null;
+      vehicles?: { plateNumber: string; makeModel?: string | null; type: "CAR" | "BIKE" }[];
+    }
+  ): Promise<any> {
+    return await prisma.$transaction(async (tx) => {
+      // Update User details
+      const user = await tx.user.update({
+        where: { id: userId },
+        data: {
+          name: data.name,
+          email: data.email,
+          aadharNumber: data.aadharNumber,
+          image: data.image,
+        },
+      });
+
+      // Update vehicles if provided
+      if (data.vehicles) {
+        // Disconnect or delete old vehicles for this user
+        await tx.vehicle.deleteMany({
+          where: { ownerId: userId },
+        });
+
+        // Find user's active organization (society)
+        const member = await tx.member.findFirst({
+          where: { userId },
+        });
+
+        const activeOrgId = member?.organizationId;
+
+        // Find user's first assigned flat
+        const userWithFlats = await tx.user.findUnique({
+          where: { id: userId },
+          include: { flats: true },
+        });
+        const firstFlatId = userWithFlats?.flats[0]?.id;
+
+        if (activeOrgId) {
+          for (const v of data.vehicles) {
+            await tx.vehicle.create({
+              data: {
+                plateNumber: v.plateNumber.toUpperCase(),
+                makeModel: v.makeModel,
+                type: v.type,
+                ownerId: userId,
+                flatId: firstFlatId || null,
+                organizationId: activeOrgId,
+              },
+            });
+          }
+        }
+      }
+
+      return user;
+    });
+  }
+
+  // 11. Search Vehicle by Plate number
+  static async searchVehicle(societyId: string, plateNumber: string): Promise<any> {
+    const cleanPlate = plateNumber.toUpperCase().replace(/\s+/g, "");
+    
+    return await prisma.vehicle.findFirst({
+      where: {
+        organizationId: societyId,
+        plateNumber: {
+          contains: cleanPlate,
+        },
+      },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+          },
+        },
+        flat: {
+          include: {
+            tower: true,
+          },
+        },
+      },
+    });
+  }
+
+  // 12. Send Parking Blocking Notification
+  static async notifyVehicleBlocking(societyId: string, senderId: string, vehicleId: string): Promise<any> {
+    const vehicle = await prisma.vehicle.findUnique({
+      where: { id: vehicleId },
+      include: {
+        owner: true,
+      },
+    });
+
+    if (!vehicle || vehicle.organizationId !== societyId) {
+      throw new Error("Vehicle not found");
+    }
+
+    const sender = await prisma.user.findUnique({ where: { id: senderId } });
+    const senderName = sender?.name || "A neighbor";
+    const title = "Parking Alert: Blocked Vehicle 🚗";
+    const body = `Your vehicle ${vehicle.plateNumber} is currently blocking another vehicle. ${senderName} has requested that you move it.`;
+
+    // Save in-app notification
+    await prisma.notification.create({
+      data: {
+        userId: vehicle.ownerId,
+        title,
+        body,
+        type: "GATE_CALL",
+        data: JSON.stringify({ vehicleId }),
+      },
+    });
+
+    // Push to job queue
+    const QueueService = require("./queue.service").QueueService;
+    await QueueService.pushNotificationJob(vehicle.ownerId, title, body, "GATE_CALL");
+
+    return { success: true };
   }
 }

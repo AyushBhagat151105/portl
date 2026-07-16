@@ -52,7 +52,17 @@ export const queryKeys = {
 
   // ─── Residents search ─────────────────────────────────────────────────────
   residents: (search: string) => ["residents", search] as const,
+  
+  // ─── Event Bookings ───────────────────────────────────────────────────────
+  bookings: () => ["bookings"] as const,
 
   // ─── Notifications ────────────────────────────────────────────────────────
   notifications: () => ["notifications"] as const,
+
+  // ─── Treasury & Budgeting ──────────────────────────────────────────────────
+  treasury: {
+    budgets: () => ["treasury", "budgets"] as const,
+    expenses: (category?: string) => ["treasury", "expenses", category] as const,
+    festivals: () => ["treasury", "festivals"] as const,
+  },
 } as const;

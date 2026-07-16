@@ -7,11 +7,18 @@ import { useRouter } from "expo-router";
 import { authClient } from "@/lib/auth-client";
 import { signInSchema, type SignInFormData } from "@/lib/form-schemas";
 import { Card } from "./ui/card";
+import { api } from "@/lib/api";
+import { useSocietyStore } from "@/store/useSocietyStore";
 
-function SignIn() {
+interface SignInProps {
+  isSubmittingRef?: React.MutableRefObject<boolean>;
+}
+
+function SignIn({ isSubmittingRef }: SignInProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const { setRole } = useSocietyStore();
 
   const { control, handleSubmit } = useForm<SignInFormData>({
     resolver: zodResolver(signInSchema),
@@ -21,6 +28,9 @@ function SignIn() {
   async function onSubmit(data: SignInFormData) {
     setIsLoading(true);
     setError(null);
+    if (isSubmittingRef) {
+      isSubmittingRef.current = true;
+    }
 
     try {
       await authClient.signIn.email({
@@ -28,10 +38,38 @@ function SignIn() {
         password: data.password,
       });
       await authClient.getSession();
+
+      // Fetch user membership directly to find role and redirect target
+      const memberRes = await api.get("/api/society/my-membership");
+      const membership = memberRes.data?.data;
+
+      // Sync role into Zustand store before routing
+      if (membership?.role) {
+        const serverRole = membership.role.toLowerCase();
+        if (serverRole === "admin" || serverRole === "owner" || serverRole === "resident" || serverRole === "guard") {
+          setRole(serverRole === "owner" ? "admin" : (serverRole as "admin" | "resident" | "guard"));
+        }
+      }
+
       // Brief window for SecureStore write and navigation context to sync
       await new Promise((resolve) => setTimeout(resolve, 200));
-      router.replace("/(drawer)");
+
+      if (membership) {
+        const role = membership.role?.toLowerCase();
+        if (role === "admin" || role === "owner") {
+          router.replace("/(drawer)/admin/dashboard");
+        } else if (role === "guard") {
+          router.replace("/(drawer)/guard/dashboard");
+        } else {
+          router.replace("/(drawer)/resident/dashboard");
+        }
+      } else {
+        router.replace("/onboarding");
+      }
     } catch (err: any) {
+      if (isSubmittingRef) {
+        isSubmittingRef.current = false;
+      }
       setError(err.message || "Failed to sign in");
       setIsLoading(false);
     }

@@ -1,17 +1,23 @@
 import { Text, View, Pressable } from "react-native";
-import { Link, Redirect } from "expo-router";
+import { Link, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { SignIn as SignInForm } from "@/components/sign-in";
 import { authClient } from "@/lib/auth-client";
 import { ScreenContainer } from "@/components/ui/screen-container";
+import { useEffect, useRef } from "react";
 
 export default function SignInScreen() {
   const { data: session } = authClient.useSession();
+  const isSubmittingRef = useRef(false);
+  const router = useRouter();
 
-  if (session) {
-    return <Redirect href="/(drawer)" />;
-  }
+  useEffect(() => {
+    // Only redirect if session is present and we did not just submit the form
+    if (session && !isSubmittingRef.current) {
+      router.replace("/(drawer)");
+    }
+  }, [session]);
 
   return (
     <ScreenContainer contentContainerStyle={{ paddingHorizontal: 24, paddingVertical: 32, justifyContent: "center" }}>
@@ -26,7 +32,7 @@ export default function SignInScreen() {
       </View>
 
       <View className="gap-6">
-        <SignInForm />
+        <SignInForm isSubmittingRef={isSubmittingRef} />
         
         <View className="flex-row justify-center items-center mt-4">
           <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs">Don't have an account? </Text>

@@ -82,6 +82,7 @@ export class CommonSocietyService {
         totalVotes,
         userVotedIndex: userVoteMap.has(p.id) ? userVoteMap.get(p.id) : null,
         results: optionCounts,
+        status: p.status,
         createdAt: p.createdAt,
       };
     });
@@ -232,5 +233,37 @@ export class CommonSocietyService {
       },
       orderBy: { number: "asc" },
     });
+  }
+
+  // Get results of a specific poll
+  static async getPollResults(societyId: string, pollId: string): Promise<any> {
+    const poll = await prisma.poll.findUnique({
+      where: { id: pollId, organizationId: societyId },
+    });
+    if (!poll) throw new Error("Poll not found");
+
+    const voteGroups = await prisma.pollVote.groupBy({
+      by: ["optionIndex"],
+      where: { pollId },
+      _count: { optionIndex: true },
+    });
+
+    const optionCounts = new Array(poll.options.length).fill(0);
+    let totalVotes = 0;
+    for (const g of voteGroups) {
+      if (g.optionIndex < optionCounts.length) {
+        optionCounts[g.optionIndex] = g._count.optionIndex;
+        totalVotes += g._count.optionIndex;
+      }
+    }
+
+    return {
+      pollId,
+      question: poll.question,
+      options: poll.options,
+      results: optionCounts,
+      totalVotes,
+      status: poll.status,
+    };
   }
 }

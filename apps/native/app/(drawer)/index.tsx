@@ -1,4 +1,4 @@
-import { Redirect } from "expo-router";
+import { Redirect, router } from "expo-router";
 import React, { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { authClient } from "@/lib/auth-client";
@@ -6,8 +6,9 @@ import { useSocietyStore } from "@/store/useSocietyStore";
 import { useMyMembershipQuery, useRegisterPushTokenMutation } from "@/queries/society";
 
 export default function Index() {
-  const { data: session, isPending: sessionPending } = authClient.useSession();
+  const { data: session, isPending: sessionPending, refetch: refetchSession } = authClient.useSession();
   const { currentRole, setRole } = useSocietyStore();
+  const [hasRefetched, setHasRefetched] = React.useState(false);
   const [loadingTimeout, setLoadingTimeout] = React.useState(false);
   const registerPushTokenMutation = useRegisterPushTokenMutation();
 
@@ -47,18 +48,28 @@ export default function Index() {
     }
   }, [membership]);
 
+  useEffect(() => {
+    if (!sessionPending && !session) {
+      if (!hasRefetched) {
+        const p = refetchSession();
+        if (p && typeof p.then === "function") {
+          p.catch(() => {}).finally(() => setHasRefetched(true));
+        } else {
+          setHasRefetched(true);
+        }
+      } else {
+        router.replace("/(auth)/sign-in");
+      }
+    }
+  }, [session, sessionPending, hasRefetched]);
+
   // ── Loading states ────────────────────────────────────────────────────────
-  if (sessionPending) {
+  if (sessionPending || !session) {
     return (
       <View className="flex-1 bg-zinc-950 items-center justify-center">
         <ActivityIndicator size="large" color="#f59e0b" />
       </View>
     );
-  }
-
-  // No session → go to sign-in
-  if (!session) {
-    return <Redirect href="/(auth)/sign-in" />;
   }
 
   // Wait for membership check (with 8s safety timeout)

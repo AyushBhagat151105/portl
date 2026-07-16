@@ -1,5 +1,6 @@
 import prisma from "@portl/db";
 import { QueueService } from "./queue.service";
+import { encryptText } from "../../lib/crypto";
 
 
 export class AdminSocietyService {
@@ -70,7 +71,7 @@ export class AdminSocietyService {
     });
   }
 
-  // 3. Get all members of a society — flats select is narrow to keep payload small
+  // 3. Get all members of a society — includes full profiles
   static async getMembers(societyId: string): Promise<any[]> {
     return await prisma.member.findMany({
       where: { organizationId: societyId },
@@ -81,11 +82,17 @@ export class AdminSocietyService {
             name: true,
             email: true,
             image: true,
+            aadharNumber: true,
+            vehicleNumber: true,
+            vehicles: true,
             flats: {
               where: { tower: { organizationId: societyId } },
               select: {
                 id: true,
                 number: true,
+                occupancyStatus: true,
+                memberCount: true,
+                vehicleMemberCount: true,
                 tower: { select: { name: true } },
               },
             },
@@ -171,6 +178,14 @@ export class AdminSocietyService {
     return poll;
   }
 
+  // 5b. Close a community poll
+  static async closePoll(societyId: string, pollId: string): Promise<any> {
+    return await prisma.poll.update({
+      where: { id: pollId, organizationId: societyId },
+      data: { status: "CLOSED" },
+    });
+  }
+
   // 6. Update support complaint ticket status and notify creator
   static async updateComplaint(complaintId: string, status: "PENDING" | "IN_PROGRESS" | "RESOLVED"): Promise<any> {
     const complaint = await prisma.complaint.update({
@@ -215,7 +230,7 @@ export class AdminSocietyService {
   // 8. Create a new staff directory provider
   static async createStaff(
     societyId: string,
-    data: { name: string; phone: string; role: string; code?: string }
+    data: { name: string; phone: string; role: string; code?: string; aadharNumber?: string; vehicleNumber?: string; avatar?: string }
   ): Promise<any> {
     return await prisma.staffProvider.create({
       data: {
@@ -223,6 +238,9 @@ export class AdminSocietyService {
         phone: data.phone,
         role: data.role,
         code: data.code,
+        aadharNumber: data.aadharNumber,
+        vehicleNumber: data.vehicleNumber,
+        avatar: data.avatar,
         organizationId: societyId,
       },
     });
@@ -232,6 +250,17 @@ export class AdminSocietyService {
   static async deleteStaff(staffId: string): Promise<any> {
     return await prisma.staffProvider.delete({
       where: { id: staffId },
+    });
+  }
+
+  // 9b. Update a staff provider
+  static async updateStaff(
+    staffId: string,
+    data: { name?: string; phone?: string; role?: string; code?: string | null; aadharNumber?: string | null; vehicleNumber?: string | null; avatar?: string | null }
+  ): Promise<any> {
+    return await prisma.staffProvider.update({
+      where: { id: staffId },
+      data,
     });
   }
 
@@ -364,5 +393,201 @@ export class AdminSocietyService {
         razorpayPaymentId: "OFFLINE_PAYMENT",
       },
     });
+  }
+
+  // 13. Create Resident Manually
+  static async createResident(
+    societyId: string,
+    data: { name: string; email: string; phone?: string; aadharNumber?: string; image?: string }
+  ): Promise<any> {
+    const existing = await prisma.user.findUnique({
+      where: { email: data.email },
+    });
+    
+    let user = existing;
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          id: crypto.randomUUID(),
+          name: data.name,
+          email: data.email,
+          aadharNumber: data.aadharNumber,
+          image: data.image,
+        },
+      });
+    }
+
+    const existingMember = await prisma.member.findFirst({
+      where: { userId: user.id, organizationId: societyId },
+    });
+
+    if (!existingMember) {
+      await prisma.member.create({
+        data: {
+          id: crypto.randomUUID(),
+          userId: user.id,
+          organizationId: societyId,
+          role: "resident",
+        },
+      });
+    }
+
+    return user;
+  }
+
+  // 14. Update Resident Profile
+  static async updateResident(
+    userId: string,
+    data: { name?: string; email?: string; aadharNumber?: string | null; image?: string | null }
+  ): Promise<any> {
+    return await prisma.user.update({
+      where: { id: userId },
+      data,
+    });
+  }
+
+  // 15. Delete Resident / Remove from society
+  static async deleteResident(societyId: string, userId: string): Promise<any> {
+    // Remove member link
+    await prisma.member.deleteMany({
+      where: { userId, organizationId: societyId },
+    });
+
+    // Disconnect flat assignments in this society
+    const flats = await prisma.flat.findMany({
+      where: {
+        tower: { organizationId: societyId },
+        residents: { some: { id: userId } },
+      },
+      select: { id: true },
+    });
+
+    if (flats.length > 0) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          flats: {
+            disconnect: flats.map((f) => ({ id: f.id })),
+          },
+        },
+      });
+    }
+
+    return { deleted: true };
+  }
+
+  // 16. Flexible Flat Allocation
+  static async allocateFlat(
+    societyId: string,
+    data: {
+      flatId: string;
+      ownerId?: string | null;
+      occupancyStatus: string;
+      memberCount?: number;
+      vehicleMemberCount?: number;
+      residentIds?: string[];
+    }
+  ): Promise<any> {
+    const flat = await prisma.flat.findUnique({
+      where: { id: data.flatId },
+      include: { tower: true },
+    });
+
+    if (!flat || flat.tower.organizationId !== societyId) {
+      throw new Error("Flat not found in this society");
+    }
+
+    return await prisma.flat.update({
+      where: { id: data.flatId },
+      data: {
+        ownerId: data.ownerId || null,
+        occupancyStatus: data.occupancyStatus,
+        memberCount: data.memberCount ?? 0,
+        vehicleMemberCount: data.vehicleMemberCount ?? 0,
+        residents: {
+          set: data.residentIds ? data.residentIds.map((id) => ({ id })) : [],
+        },
+      },
+      include: {
+        residents: true,
+        owner: true,
+      },
+    });
+  }
+
+  // 17. Update Razorpay Payment Config for Society
+  static async updatePaymentConfig(
+    societyId: string,
+    data: { razorpayKeyId: string; razorpayKeySecret: string }
+  ): Promise<any> {
+    const encryptedSecret = encryptText(data.razorpayKeySecret);
+    return await prisma.organization.update({
+      where: { id: societyId },
+      data: {
+        razorpayKeyId: data.razorpayKeyId,
+        razorpayKeySecret: encryptedSecret,
+      },
+    });
+  }
+
+  // 17b. Retrieve payment config keys
+  static async getPaymentConfig(societyId: string): Promise<any> {
+    const org = await prisma.organization.findUnique({
+      where: { id: societyId },
+      select: {
+        razorpayKeyId: true,
+        razorpayKeySecret: true,
+      },
+    });
+    return {
+      razorpayKeyId: org?.razorpayKeyId || "",
+      hasSecret: !!org?.razorpayKeySecret,
+    };
+  }
+
+  // 18. Retrieve all Amenity/Event Booking requests
+  static async getBookingRequests(societyId: string): Promise<any[]> {
+    return await prisma.amenityBooking.findMany({
+      where: {
+        amenity: { organizationId: societyId },
+      },
+      include: {
+        amenity: true,
+        bookedBy: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+      orderBy: { date: "desc" },
+    });
+  }
+
+  // 19. Respond to booking request
+  static async respondToBookingRequest(
+    bookingId: string,
+    status: "APPROVED" | "REJECTED" | "CANCELLED"
+  ): Promise<any> {
+    const booking = await prisma.amenityBooking.update({
+      where: { id: bookingId },
+      data: { status },
+      include: { amenity: true },
+    });
+
+    // Notify applicant
+    const title = `Event Booking status: ${status} 📅`;
+    const body = `Your request to book "${booking.amenity.name}" on ${new Date(booking.date).toLocaleDateString()} is ${status.toLowerCase()}`;
+
+    await prisma.notification.create({
+      data: {
+        userId: booking.bookedById,
+        title,
+        body,
+        type: "AMENITY",
+        data: JSON.stringify({ bookingId }),
+      },
+    });
+
+    await QueueService.pushNotificationJob(booking.bookedById, title, body, "AMENITY");
+
+    return booking;
   }
 }

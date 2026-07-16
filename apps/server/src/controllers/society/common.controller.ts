@@ -30,6 +30,17 @@ export class CommonSocietyController {
     }
   }
 
+  static async getPollResults(c: Context) {
+    try {
+      const societyId = c.get("societyId");
+      const pollId = c.req.param("id")!;
+      const result = await CommonSocietyService.getPollResults(societyId, pollId);
+      return successResponse(c, result);
+    } catch (err: any) {
+      return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
+    }
+  }
+
   // Support Complaints (Helpdesk)
   static async getComplaints(c: Context) {
     try {

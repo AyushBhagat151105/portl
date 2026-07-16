@@ -89,7 +89,7 @@ export function useRaiseComplaintMutation() {
 export function useBookAmenityMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { amenityId: string; date: string; timeslot: string }) => {
+    mutationFn: async (data: { amenityId: string; date: string; timeslot: string; purpose?: string }) => {
       const res = await api.post("/api/society/resident/amenities/book", data);
       return res.data?.data;
     },
@@ -136,6 +136,62 @@ export function useVerifyPaymentMutation() {
     },
     onSuccess: () => {
       return queryClient.invalidateQueries({ queryKey: ["dues"] });
+    },
+  });
+}
+
+// 10b. Get resident profile
+export function useProfileQuery() {
+  return useQuery({
+    queryKey: ["profile"],
+    queryFn: async () => {
+      const res = await api.get("/api/society/resident/profile");
+      return res.data?.data;
+    },
+  });
+}
+
+// 11. Update resident profile
+export function useUpdateProfileMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      name?: string;
+      email?: string;
+      phone?: string | null;
+      aadharNumber?: string | null;
+      image?: string | null;
+      vehicles?: { plateNumber: string; makeModel?: string | null; type: "CAR" | "BIKE" }[];
+    }) => {
+      const res = await api.put("/api/society/resident/profile", data);
+      return res.data?.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.membership() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.members() });
+    },
+  });
+}
+
+// 12. Search vehicle plate
+export function useSearchVehicleQuery(plateNumber: string) {
+  return useQuery({
+    queryKey: ["vehicles", "search", plateNumber],
+    queryFn: async () => {
+      if (!plateNumber) return null;
+      const res = await api.get("/api/society/resident/vehicles/search", { params: { plateNumber } });
+      return res.data?.data ?? null;
+    },
+    enabled: plateNumber.length >= 3,
+  });
+}
+
+// 13. Send vehicle blocking alert
+export function useNotifyVehicleBlockingMutation() {
+  return useMutation({
+    mutationFn: async (vehicleId: string) => {
+      const res = await api.post(`/api/society/resident/vehicles/${vehicleId}/notify-blocking`);
+      return res.data?.data;
     },
   });
 }

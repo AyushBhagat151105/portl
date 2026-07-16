@@ -68,6 +68,9 @@ export const createStaffSchema = z.object({
   phone: z.string().min(1, "Phone number is required"),
   role: z.string().min(1, "Staff role is required"),
   code: z.string().optional(),
+  aadharNumber: z.string().optional(),
+  vehicleNumber: z.string().optional(),
+  avatar: z.string().optional(),
 });
 
 export const assignFlatSchema = z.object({
@@ -96,6 +99,7 @@ export const bookAmenitySchema = z.object({
     .min(1, "Please select a date")
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format"),
   timeslot: z.string().min(1, "Please select a time slot"),
+  purpose: z.string().optional(),
 });
 
 // ── Guard Forms ─────────────────────────────────────────

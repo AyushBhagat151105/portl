@@ -13,6 +13,8 @@ model User {
 
   // Portl Society App Relations
   flats              Flat[]           @relation("FlatResidents")
+  ownedFlats         Flat[]           @relation("FlatOwner")
+  vehicles           Vehicle[]
   bookings           AmenityBooking[]
   authoredNotices    Notice[]
   votes              PollVote[]
@@ -21,6 +23,8 @@ model User {
   pushTokens         PushToken[]
   notifications      Notification[]
   notificationJobs   NotificationJob[]
+  aadharNumber       String?
+  vehicleNumber      String?
 
   @@unique([email])
   @@map("user")
@@ -94,6 +98,12 @@ model Organization {
   visitors       Visitor[]
   staffProviders StaffProvider[]
   maintenanceDues MaintenanceDue[]
+  budgets        Budget[]
+  expenses       Expense[]
+  festivals      Festival[]
+  vehicles       Vehicle[]
+  razorpayKeyId  String?
+  razorpayKeySecret String?
 
   @@unique([slug])
   @@map("organization")

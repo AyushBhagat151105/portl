@@ -19,7 +19,7 @@ function CustomDrawerContent(props: any) {
   return (
     <View style={{ flex: 1, backgroundColor: isLight ? "#fcfbf9" : "#1c1917" }}>
       {/* 1. Header Profile block */}
-      <View 
+      <View
         style={{ paddingTop: Math.max(insets.top, 16) }}
         className="px-5 pb-6 border-b border-border-light dark:border-border-dark bg-muted-light/20 dark:bg-muted-dark/20"
       >
@@ -32,8 +32,8 @@ function CustomDrawerContent(props: any) {
       </View>
 
       {/* 2. Menu Navigation Links List (Scrollable) */}
-      <DrawerContentScrollView 
-        {...props} 
+      <DrawerContentScrollView
+        {...props}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingTop: 4, paddingBottom: 10 }}
       >
@@ -59,18 +59,30 @@ function CustomDrawerContent(props: any) {
 export default function DrawerLayout() {
   const { currentRole } = useSocietyStore();
   const { isLight } = useAppTheme();
-  const { data: session, isPending } = authClient.useSession();
+  const { data: session, isPending, refetch } = authClient.useSession();
+  const [hasRefetched, setHasRefetched] = React.useState(false);
 
-  if (isPending) {
+  React.useEffect(() => {
+    if (!isPending && !session) {
+      if (!hasRefetched) {
+        const p = refetch();
+        if (p && typeof p.then === "function") {
+          p.catch(() => { }).finally(() => setHasRefetched(true));
+        } else {
+          setHasRefetched(true);
+        }
+      } else {
+        router.replace("/(auth)/sign-in");
+      }
+    }
+  }, [session, isPending, hasRefetched]);
+
+  if (isPending || !session) {
     return (
       <View style={{ flex: 1, backgroundColor: isLight ? "#fcfbf9" : "#1c1917" }} className="items-center justify-center">
         <ActivityIndicator size="large" color="#f59e0b" />
       </View>
     );
-  }
-
-  if (!session) {
-    return <Redirect href="/(auth)/sign-in" />;
   }
 
   const bgColor = isLight ? "#fcfbf9" : "#1c1917";
@@ -124,6 +136,7 @@ export default function DrawerLayout() {
       />
 
       {/* ==================== RESIDENT VIEWS ==================== */}
+
       <Drawer.Screen
         name="resident/dashboard"
         options={{
@@ -131,6 +144,24 @@ export default function DrawerLayout() {
           drawerLabel: "Notice Board & Polls",
           drawerItemStyle: getDrawerItemStyle(currentRole === "resident"),
           drawerIcon: ({ size, color }) => <Ionicons name="megaphone-outline" size={size} color={color} />,
+        }}
+      />
+      <Drawer.Screen
+        name="resident/profile"
+        options={{
+          headerTitle: "My Profile",
+          drawerLabel: "Profile Settings",
+          drawerItemStyle: getDrawerItemStyle(currentRole === "resident"),
+          drawerIcon: ({ size, color }) => <Ionicons name="person-outline" size={size} color={color} />,
+        }}
+      />
+      <Drawer.Screen
+        name="resident/parking-alerts"
+        options={{
+          headerTitle: "Parking Alerts",
+          drawerLabel: "Parking Helper",
+          drawerItemStyle: getDrawerItemStyle(currentRole === "resident"),
+          drawerIcon: ({ size, color }) => <Ionicons name="car-outline" size={size} color={color} />,
         }}
       />
       <Drawer.Screen
@@ -227,6 +258,7 @@ export default function DrawerLayout() {
       />
 
       {/* ==================== ADMIN VIEWS ==================== */}
+
       <Drawer.Screen
         name="admin/dashboard"
         options={{
@@ -234,6 +266,24 @@ export default function DrawerLayout() {
           drawerLabel: "Admin Dashboard",
           drawerItemStyle: getDrawerItemStyle(currentRole === "admin"),
           drawerIcon: ({ size, color }) => <Ionicons name="cog-outline" size={size} color={color} />,
+        }}
+      />
+      <Drawer.Screen
+        name="admin/treasury"
+        options={{
+          headerTitle: "Budget & Treasury",
+          drawerLabel: "Treasury Console",
+          drawerItemStyle: getDrawerItemStyle(currentRole === "admin"),
+          drawerIcon: ({ size, color }) => <Ionicons name="wallet-outline" size={size} color={color} />,
+        }}
+      />
+      <Drawer.Screen
+        name="admin/manage-bookings"
+        options={{
+          headerTitle: "Review Bookings",
+          drawerLabel: "Event Booking Requests",
+          drawerItemStyle: getDrawerItemStyle(currentRole === "admin"),
+          drawerIcon: ({ size, color }) => <Ionicons name="calendar-outline" size={size} color={color} />,
         }}
       />
       <Drawer.Screen

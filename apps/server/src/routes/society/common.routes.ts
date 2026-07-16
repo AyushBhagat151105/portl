@@ -14,6 +14,7 @@ router.post("/join", CommonSocietyController.joinSociety);
 // Common read-only queries (permitted for active members)
 router.get("/notices", roleMiddleware(["resident", "guard", "admin"]), CommonSocietyController.getNotices);
 router.get("/polls", roleMiddleware(["resident", "admin"]), CommonSocietyController.getPolls);
+router.get("/polls/:id/results", roleMiddleware(["resident", "admin"]), CommonSocietyController.getPollResults);
 router.get("/complaints", roleMiddleware(["resident", "admin"]), CommonSocietyController.getComplaints);
 router.get("/amenities", roleMiddleware(["resident", "admin"]), CommonSocietyController.getAmenities);
 router.get("/staff", roleMiddleware(["resident", "guard", "admin"]), CommonSocietyController.getStaff);

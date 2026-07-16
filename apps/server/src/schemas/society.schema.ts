@@ -61,6 +61,11 @@ export const bookAmenitySchema = z.object({
   amenityId: z.string().min(1, "Amenity ID is required"),
   date: z.string().min(1, "Date is required"), // Expecting ISO date string e.g. "2026-07-15"
   timeslot: z.string().min(1, "Timeslot is required"), // e.g. "10:00 AM - 12:00 PM"
+  purpose: z.string().optional(),
+});
+
+export const respondBookingSchema = z.object({
+  status: z.enum(["APPROVED", "REJECTED", "CANCELLED"]),
 });
 
 export const registerPushTokenSchema = z.object({
@@ -79,6 +84,15 @@ export const assignFlatSchema = z.object({
   flatId: z.string().min(1, "Flat ID is required"),
 });
 
+export const allocateFlatSchema = z.object({
+  flatId: z.string().min(1, "Flat ID is required"),
+  ownerId: z.string().optional().nullable(),
+  occupancyStatus: z.enum(["VACANT", "OWNER_OCCUPIED", "RENTED"]),
+  memberCount: z.number().int().nonnegative().optional(),
+  vehicleMemberCount: z.number().int().nonnegative().optional(),
+  residentIds: z.array(z.string()).optional(),
+});
+
 export const createAmenitySchema = z.object({
   name: z.string().min(1, "Amenity name is required"),
   description: z.string().optional(),
@@ -91,6 +105,19 @@ export const createStaffSchema = z.object({
   phone: z.string().min(1, "Phone number is required"),
   role: z.string().min(1, "Staff role is required"),
   code: z.string().optional(),
+  aadharNumber: z.string().optional().nullable(),
+  vehicleNumber: z.string().optional().nullable(),
+  avatar: z.string().optional().nullable(),
+});
+
+export const updateStaffSchema = z.object({
+  name: z.string().min(1, "Staff name is required").optional(),
+  phone: z.string().min(1, "Phone number is required").optional(),
+  role: z.string().min(1, "Staff role is required").optional(),
+  code: z.string().optional().nullable(),
+  aadharNumber: z.string().optional().nullable(),
+  vehicleNumber: z.string().optional().nullable(),
+  avatar: z.string().optional().nullable(),
 });
 
 export const generateDuesSchema = z.object({
@@ -103,5 +130,48 @@ export const verifyPaymentSchema = z.object({
   razorpay_payment_id: z.string().min(1, "Payment ID is required"),
   razorpay_order_id: z.string().min(1, "Order ID is required"),
   razorpay_signature: z.string().min(1, "Signature is required"),
+});
+
+export const updatePaymentConfigSchema = z.object({
+  razorpayKeyId: z.string().min(1, "Razorpay Key ID is required"),
+  razorpayKeySecret: z.string().min(1, "Razorpay Key Secret is required"),
+});
+
+export const updateProfileSchema = z.object({
+  name: z.string().min(1, "Name is required").optional(),
+  email: z.string().email("Invalid email address").optional(),
+  phone: z.string().optional().nullable(),
+  aadharNumber: z.string().length(12, "Aadhar must be exactly 12 digits").regex(/^\d+$/, "Aadhar must be digits only").optional().nullable(),
+  image: z.string().optional().nullable(),
+});
+
+export const registerVehicleSchema = z.object({
+  plateNumber: z.string().min(1, "Plate number is required"),
+  makeModel: z.string().optional().nullable(),
+  type: z.enum(["CAR", "BIKE"]),
+  flatId: z.string().optional().nullable(),
+});
+
+export const createBudgetSchema = z.object({
+  title: z.string().min(1, "Budget title is required"),
+  allocatedAmount: z.number().positive("Amount must be positive"),
+  startDate: z.string().min(1, "Start date is required"),
+  endDate: z.string().min(1, "End date is required"),
+});
+
+export const createExpenseSchema = z.object({
+  title: z.string().min(1, "Expense title is required"),
+  amount: z.number().positive("Amount must be positive"),
+  category: z.enum(["MAINTENANCE", "UTILITIES", "SALARIES", "FESTIVAL", "REPAIRS", "OTHERS"]),
+  description: z.string().optional().nullable(),
+  date: z.string().min(1, "Date is required"),
+  budgetId: z.string().optional().nullable(),
+});
+
+export const createFestivalSchema = z.object({
+  name: z.string().min(1, "Festival name is required"),
+  description: z.string().optional().nullable(),
+  date: z.string().min(1, "Date is required"),
+  allocatedBudget: z.number().positive().optional(),
 });
 

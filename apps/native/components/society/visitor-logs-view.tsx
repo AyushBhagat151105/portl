@@ -147,7 +147,7 @@ export function VisitorLogsView() {
       {isLoading ? (
         <Loader fullscreen={false} />
       ) : (
-        <ScrollView className="flex-grow px-4" contentContainerStyle={{ paddingBottom: 40 }}>
+        <ScrollView className="grow px-4" contentContainerStyle={{ paddingBottom: 40 }}>
           <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs mb-3">
             {activeTab === "active" ? `${logs.length} inside / pending` : `${logs.length} historical records`}
           </Text>

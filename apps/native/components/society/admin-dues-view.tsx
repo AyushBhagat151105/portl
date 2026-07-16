@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ScrollView, Text, View, Pressable, TextInput, ActivityIndicator, Modal, Alert } from "react-native";
+import { ScrollView, Text, View, Pressable, TextInput, ActivityIndicator, Modal, Alert, useColorScheme } from "react-native";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FieldError, Chip } from "heroui-native";
@@ -8,6 +8,8 @@ import {
   useAdminDuesQuery,
   useGenerateDuesMutation,
   useMarkDuePaidMutation,
+  usePaymentConfigQuery,
+  useUpdatePaymentConfigMutation,
 } from "../../queries/admin";
 import { useToastStore } from "../../store/useToastStore";
 import { ScreenContainer } from "../ui/screen-container";
@@ -22,6 +24,38 @@ export function AdminDuesView() {
   const generateMutation = useGenerateDuesMutation();
   const markPaidMutation = useMarkDuePaidMutation();
   const { showToast } = useToastStore();
+  const colorScheme = useColorScheme();
+
+  const [showPaymentConfig, setShowPaymentConfig] = useState(false);
+  const { data: paymentConfig, refetch: refetchPaymentConfig } = usePaymentConfigQuery();
+  const updatePaymentConfig = useUpdatePaymentConfigMutation();
+  const [razorpayKeyId, setRazorpayKeyId] = useState("");
+  const [razorpayKeySecret, setRazorpayKeySecret] = useState("");
+
+  React.useEffect(() => {
+    if (paymentConfig) {
+      setRazorpayKeyId(paymentConfig.razorpayKeyId || "");
+      setRazorpayKeySecret(paymentConfig.hasSecret ? "••••••••••••••••" : "");
+    }
+  }, [paymentConfig]);
+
+  const handleSavePaymentConfig = async () => {
+    if (!razorpayKeyId.trim() || !razorpayKeySecret.trim()) {
+      showToast("Please fill in both key ID and secret key", "error");
+      return;
+    }
+    try {
+      await updatePaymentConfig.mutateAsync({
+        razorpayKeyId: razorpayKeyId.trim(),
+        razorpayKeySecret: razorpayKeySecret.trim(),
+      });
+      showToast("Razorpay credentials saved successfully!", "success");
+      refetchPaymentConfig();
+      setShowPaymentConfig(false);
+    } catch (err: any) {
+      showToast(err.message || "Failed to update payment keys", "error");
+    }
+  };
 
   const [showMonthModal, setShowMonthModal] = useState(false);
   const [showDateModal, setShowDateModal] = useState(false);
@@ -131,10 +165,76 @@ export function AdminDuesView() {
 
   const outstandingCount = dues?.filter((d: any) => d.status === "PENDING").length ?? 0;
   const collectedCount = dues?.filter((d: any) => d.status === "PAID").length ?? 0;
+  const primaryColor = colorScheme === "dark" ? "#f97316" : "#b45309";
 
   return (
     <>
     <ScreenContainer contentContainerStyle={{ padding: 24, paddingBottom: 60 }}>
+      {/* Razorpay dynamic gateway settings card */}
+      <Card className="mb-6 gap-3">
+        <Pressable
+          onPress={() => setShowPaymentConfig(!showPaymentConfig)}
+          className="flex-row justify-between items-center"
+        >
+          <View className="flex-1 pr-4">
+            <Text className="text-foreground-light dark:text-foreground-dark text-base font-bold">
+              Razorpay API Gateway
+            </Text>
+            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs mt-0.5">
+              {paymentConfig?.razorpayKeyId ? `Active (Key ID: ${paymentConfig.razorpayKeyId})` : "Configure dynamic payment routing"}
+            </Text>
+          </View>
+          <Ionicons
+            name={showPaymentConfig ? "chevron-up-circle-outline" : "chevron-down-circle-outline"}
+            size={22}
+            color={primaryColor}
+          />
+        </Pressable>
+
+        {showPaymentConfig && (
+          <View className="gap-4 mt-2 pt-3 border-t border-border-light dark:border-border-dark">
+            <View className="gap-1.5">
+              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs font-semibold">
+                Razorpay Key ID *
+              </Text>
+              <TextInput
+                value={razorpayKeyId}
+                onChangeText={setRazorpayKeyId}
+                placeholder="rzp_live_..."
+                placeholderTextColor="#78716c"
+                className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl py-3 px-4 text-xs font-mono"
+              />
+            </View>
+
+            <View className="gap-1.5">
+              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs font-semibold">
+                Razorpay Key Secret *
+              </Text>
+              <TextInput
+                value={razorpayKeySecret}
+                onChangeText={setRazorpayKeySecret}
+                secureTextEntry={true}
+                placeholder="Enter Secret Key"
+                placeholderTextColor="#78716c"
+                className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl py-3 px-4 text-xs font-mono"
+              />
+            </View>
+
+            <Pressable
+              onPress={handleSavePaymentConfig}
+              disabled={updatePaymentConfig.isPending}
+              className="bg-primary-light dark:bg-primary-dark rounded-xl py-3.5 items-center active:opacity-90 disabled:opacity-50"
+            >
+              {updatePaymentConfig.isPending ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Text className="text-white font-bold text-xs">Save Keys Setup</Text>
+              )}
+            </Pressable>
+          </View>
+        )}
+      </Card>
+
       {/* 1. Header Dues Stats Panel */}
       <View className="flex-row gap-4 mb-6">
         <Card className="flex-1 p-4 border border-amber-500/20 bg-amber-500/5">

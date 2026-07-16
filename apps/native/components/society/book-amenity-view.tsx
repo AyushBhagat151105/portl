@@ -1,5 +1,5 @@
 import React from "react";
-import { Text, View, Pressable, ActivityIndicator } from "react-native";
+import { Text, View, Pressable, ActivityIndicator, TextInput } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,7 +23,7 @@ export function BookAmenityView() {
   const { control, handleSubmit, reset, formState: { errors } } = useForm<BookAmenityFormData>({
     resolver: zodResolver(bookAmenitySchema),
     mode: "onTouched",
-    defaultValues: { date: "", timeslot: "" },
+    defaultValues: { date: "", timeslot: "", purpose: "" },
   });
 
   const onSubmit = async (data: BookAmenityFormData) => {
@@ -34,10 +34,11 @@ export function BookAmenityView() {
         amenityId: bookingAmenityId,
         date: data.date,
         timeslot: data.timeslot,
+        purpose: data.purpose,
       });
       setBookingAmenityId(null);
       reset();
-      showToast("Amenity timeslot booked successfully!", "success");
+      showToast("Amenity timeslot requested successfully!", "success");
     } catch (err: any) {
       showToast(err.message || "Failed to book amenity", "error");
     }
@@ -56,7 +57,7 @@ export function BookAmenityView() {
       {bookingAmenityId ? (
         <Card className="mb-4 gap-4">
           <View className="flex-row justify-between items-center mb-1">
-            <Text className="text-foreground-light dark:text-foreground-dark text-lg font-bold">Book Timeslot</Text>
+            <Text className="text-foreground-light dark:text-foreground-dark text-lg font-bold">Request Timeslot</Text>
             <Pressable onPress={() => setBookingAmenityId(null)}>
               <Ionicons name="close-circle-outline" size={24} color="#78716c" />
             </Pressable>
@@ -101,6 +102,26 @@ export function BookAmenityView() {
               )}
             </View>
 
+            {/* Purpose input */}
+            <View>
+              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs mb-2 uppercase tracking-wider font-medium">
+                Purpose / Function Details
+              </Text>
+              <Controller
+                control={control}
+                name="purpose"
+                render={({ field }) => (
+                  <TextInput
+                    value={field.value}
+                    onChangeText={field.onChange}
+                    placeholder="e.g. Hosting Family Gathering"
+                    placeholderTextColor="#78716c"
+                    className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl px-4 py-3 text-sm focus:border-primary-light dark:focus:border-primary-dark"
+                  />
+                )}
+              />
+            </View>
+
             <Pressable
               disabled={bookMutation.isPending}
               onPress={handleSubmit(onSubmit)}
@@ -109,7 +130,7 @@ export function BookAmenityView() {
               {bookMutation.isPending ? (
                 <ActivityIndicator color="white" />
               ) : (
-                <Text className="text-white font-bold text-base">Book Timeslot Now</Text>
+                <Text className="text-white font-bold text-base">Request Booking Now</Text>
               )}
             </Pressable>
           </View>
@@ -148,16 +169,26 @@ export function BookAmenityView() {
                 Bookings Logs
               </Text>
               {am.bookings && am.bookings.length > 0 ? (
-                am.bookings.slice(0, 3).map((b: any) => (
-                  <View key={b.id} className="flex-row justify-between items-center py-1">
-                    <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs">
-                      {new Date(b.date).toLocaleDateString([], { month: "short", day: "numeric" })} @ {b.timeslot}
-                    </Text>
-                    <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs">
-                      By {b.bookedBy.name}
-                    </Text>
-                  </View>
-                ))
+                am.bookings.slice(0, 5).map((b: any) => {
+                  let badgeCol = "text-amber-500 bg-amber-500/10 border border-amber-500/20";
+                  if (b.status === "APPROVED") badgeCol = "text-emerald-500 bg-emerald-500/10 border border-emerald-500/20";
+                  if (b.status === "REJECTED" || b.status === "CANCELLED") badgeCol = "text-rose-500 bg-rose-500/10 border border-rose-500/20";
+                  return (
+                    <View key={b.id} className="flex-row justify-between items-center py-1.5 border-b border-border-light/40 dark:border-border-dark/40 last:border-0">
+                      <View className="flex-1 mr-2">
+                        <Text className="text-foreground-light dark:text-foreground-dark text-xs font-medium">
+                          {new Date(b.date).toLocaleDateString([], { month: "short", day: "numeric" })} @ {b.timeslot}
+                        </Text>
+                        <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs mt-0.5">
+                          By {b.bookedBy?.name} {b.purpose ? `(${b.purpose})` : ""}
+                        </Text>
+                      </View>
+                      <View className={`px-2 py-0.5 rounded ${badgeCol}`}>
+                        <Text className="text-[10px] font-bold uppercase tracking-wider">{b.status}</Text>
+                      </View>
+                    </View>
+                  );
+                })
               ) : (
                 <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs italic">
                   No upcoming slots booked.
