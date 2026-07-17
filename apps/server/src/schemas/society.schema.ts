@@ -12,6 +12,8 @@ export const setupSocietySchema = z.object({
 export const createNoticeSchema = z.object({
   title: z.string().min(1, "Notice title is required"),
   content: z.string().min(1, "Notice content is required"),
+  banner: z.string().optional().nullable(),
+  bannerPublicId: z.string().optional().nullable(),
 });
 
 export const createPollSchema = z.object({
@@ -27,7 +29,9 @@ export const raiseComplaintSchema = z.object({
   title: z.string().min(1, "Complaint title is required"),
   description: z.string().min(1, "Complaint description is required"),
   category: z.enum(["PLUMBING", "ELECTRICAL", "SECURITY", "CLEANLINESS", "OTHERS"]),
-  flatId: z.string().optional(),
+  flatId: z.string().optional().nullable(),
+  images: z.array(z.string()).optional(),
+  imagePublicIds: z.array(z.string()).optional(),
 });
 
 export const updateComplaintSchema = z.object({
@@ -176,4 +180,3 @@ export const createFestivalSchema = z.object({
   date: z.string().min(1, "Date is required"),
   allocatedBudget: z.number().positive().optional(),
 });
-

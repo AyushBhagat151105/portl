@@ -43,6 +43,8 @@ const noticeSchema = {
     id: { type: "string", example: "not-123" },
     title: { type: "string", example: "Water Supply Notice" },
     content: { type: "string", example: "Water supply will be offline tomorrow for maintenance." },
+    banner: { type: "string", nullable: true, example: "https://cloudinary/notices/banner.jpg" },
+    bannerPublicId: { type: "string", nullable: true, example: "notices/banner_public_id" },
     authorId: { type: "string", example: "admin-id" },
     organizationId: { type: "string", example: "org-456" },
     createdAt: { type: "string", format: "date-time" },
@@ -72,6 +74,9 @@ const complaintSchema = {
     description: { type: "string", example: "Main kitchen pipe leakage" },
     category: { type: "string", enum: ["PLUMBING", "ELECTRICAL", "SECURITY", "CLEANLINESS", "OTHERS"], example: "PLUMBING" },
     status: { type: "string", enum: ["PENDING", "IN_PROGRESS", "RESOLVED"], example: "PENDING" },
+    resolvedAt: { type: "string", format: "date-time", nullable: true },
+    images: { type: "array", items: { type: "string" }, example: ["https://res.cloudinary.com/complaints/1.jpg"] },
+    imagePublicIds: { type: "array", items: { type: "string" }, example: ["complaints/1_public"] },
     flatId: { type: "string", nullable: true },
     raisedById: { type: "string" },
     organizationId: { type: "string" },
@@ -157,6 +162,66 @@ const dueSchema = {
   },
 };
 
+const budgetSchema = {
+  type: "object",
+  properties: {
+    id: { type: "string", example: "bud-123" },
+    name: { type: "string", example: "Yearly Maintenance Budget" },
+    allocatedAmount: { type: "number", example: 500000 },
+    spentAmount: { type: "number", example: 120000 },
+    year: { type: "number", example: 2026 },
+    organizationId: { type: "string" },
+    createdAt: { type: "string" },
+  },
+};
+
+const expenseSchema = {
+  type: "object",
+  properties: {
+    id: { type: "string", example: "exp-123" },
+    amount: { type: "number", example: 15000 },
+    description: { type: "string", example: "Elevator repair service" },
+    category: { type: "string", example: "REPAIRS" },
+    date: { type: "string", example: "2026-07-16" },
+    budgetId: { type: "string", example: "bud-123" },
+    organizationId: { type: "string" },
+    createdAt: { type: "string" },
+  },
+};
+
+const festivalSchema = {
+  type: "object",
+  properties: {
+    id: { type: "string", example: "fest-123" },
+    name: { type: "string", example: "Diwali Celebration" },
+    description: { type: "string", example: "Diwali community lighting and dinner" },
+    date: { type: "string", example: "2026-11-08" },
+    allocatedBudget: { type: "number", example: 50000 },
+    organizationId: { type: "string" },
+    createdAt: { type: "string" },
+  },
+};
+
+const vehicleSchema = {
+  type: "object",
+  properties: {
+    id: { type: "string", example: "veh-123" },
+    plateNumber: { type: "string", example: "MH12AB1234" },
+    ownerName: { type: "string", example: "John Doe" },
+    ownerPhone: { type: "string", example: "9876543210" },
+    ownerFlat: { type: "string", example: "Tower A - 101" },
+  },
+};
+
+const paymentConfigSchema = {
+  type: "object",
+  properties: {
+    id: { type: "string", example: "pay-123" },
+    razorpayKeyId: { type: "string", example: "rzp_test_xxxx" },
+    organizationId: { type: "string" },
+  },
+};
+
 export const openapiSpec = {
   openapi: "3.0.0",
   info: {
@@ -181,6 +246,8 @@ export const openapiSpec = {
     { name: "Staff", description: "Society staff and service provider registry" },
     { name: "Notifications", description: "Device push tokens registration and in-app alert history logs" },
     { name: "Dues", description: "Maintenance dues generation and Razorpay payment integrations" },
+    { name: "Treasury", description: "Budget tracking, expense logging and community event scheduling" },
+    { name: "Media", description: "Secure image uploads and document attachments" }
   ],
   paths: {
     "/api/society/setup": {
@@ -512,6 +579,8 @@ export const openapiSpec = {
           },
         },
       },
+    },
+    "/api/society/admin/notices": {
       post: {
         tags: ["Notices"],
         summary: "Publish a notice",
@@ -525,6 +594,9 @@ export const openapiSpec = {
                 properties: {
                   title: { type: "string", example: "Water Supply Shutdown Notice" },
                   content: { type: "string", example: "Water supply will be offline tomorrow from 10 AM to 1 PM for maintenance." },
+                  banner: { type: "string", nullable: true, example: "https://res.cloudinary.com/banner.jpg" },
+                  bannerPublicId: { type: "string", nullable: true, example: "notices/banner_id" },
+                  endDate: { type: "string", nullable: true, example: "2026-07-20" },
                 },
                 required: ["title", "content"],
               },
@@ -537,6 +609,32 @@ export const openapiSpec = {
             content: {
               "application/json": {
                 schema: makeResponseSchema(noticeSchema)
+              }
+            }
+          },
+        },
+      },
+    },
+    "/api/society/admin/notices/{id}": {
+      delete: {
+        tags: ["Notices"],
+        summary: "Delete a notice announcement",
+        description: "Deletes a notice by ID and cleans up its banner asset from Cloudinary. Requires Admin role.",
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "string" },
+            description: "Notice ID",
+          },
+        ],
+        responses: {
+          200: {
+            description: "Notice deleted successfully",
+            content: {
+              "application/json": {
+                schema: successStatusSchema
               }
             }
           },
@@ -651,6 +749,8 @@ export const openapiSpec = {
           },
         },
       },
+    },
+    "/api/society/resident/complaints": {
       post: {
         tags: ["Complaints"],
         summary: "Raise a helpdesk complaint",
@@ -666,6 +766,8 @@ export const openapiSpec = {
                   description: { type: "string", example: "Continuous leakage observed from the main tap." },
                   category: { type: "string", enum: ["PLUMBING", "ELECTRICAL", "SECURITY", "CLEANLINESS", "OTHERS"], example: "PLUMBING" },
                   flatId: { type: "string", example: "uuid-of-flat" },
+                  images: { type: "array", items: { type: "string" }, example: ["https://res.cloudinary.com/complaints/1.jpg"] },
+                  imagePublicIds: { type: "array", items: { type: "string" }, example: ["complaints/1_public"] },
                 },
                 required: ["title", "description", "category"],
               },
@@ -1303,5 +1405,604 @@ export const openapiSpec = {
         }
       }
     },
-  },
-};
+    "/api/society/admin/treasury/budgets": {
+        "get": {
+          "tags": ["Treasury"],
+          "summary": "Get yearly budgets list",
+          "description": "Retrieves the allocation list of yearly/seasonal budgets. Requires Admin role.",
+          "responses": {
+            "200": {
+              "description": "Success",
+              "content": {
+                "application/json": {
+                  "schema": makeArrayResponseSchema(budgetSchema)
+                }
+              }
+            }
+          }
+        },
+        "post": {
+          "tags": ["Treasury"],
+          "summary": "Create a yearly budget",
+          "description": "Initializes a yearly treasury budget tracker. Requires Admin role.",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": { "type": "string", "example": "Yearly Lift Repairs" },
+                    "allocatedAmount": { "type": "number", "example": 100000 },
+                    "year": { "type": "number", "example": 2026 }
+                  },
+                  "required": ["name", "allocatedAmount", "year"]
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Budget created successfully",
+              "content": {
+                "application/json": {
+                  "schema": makeResponseSchema(budgetSchema)
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/society/admin/treasury/expenses": {
+        "get": {
+          "tags": ["Treasury"],
+          "summary": "Get logged expenses",
+          "description": "Retrieves society expense records history. Requires Admin role.",
+          "responses": {
+            "200": {
+              "description": "Success",
+              "content": {
+                "application/json": {
+                  "schema": makeArrayResponseSchema(expenseSchema)
+                }
+              }
+            }
+          }
+        },
+        "post": {
+          "tags": ["Treasury"],
+          "summary": "Log a society expense",
+          "description": "Logs a new expense, automatically adjusting the relevant budget's remaining/spent values. Requires Admin role.",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "amount": { "type": "number", "example": 4500 },
+                    "description": { "type": "string", "example": "Plumbing service charge" },
+                    "category": { "type": "string", "example": "REPAIRS" },
+                    "date": { "type": "string", "format": "date", "example": "2026-07-16" },
+                    "budgetId": { "type": "string", "example": "bud-uuid" }
+                  },
+                  "required": ["amount", "description", "category", "date", "budgetId"]
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Expense logged successfully",
+              "content": {
+                "application/json": {
+                  "schema": makeResponseSchema(expenseSchema)
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/society/admin/treasury/festivals": {
+        "get": {
+          "tags": ["Treasury"],
+          "summary": "Get community festivals list",
+          "description": "Retrieves the scheduled community festival calendar. Requires Admin role.",
+          "responses": {
+            "200": {
+              "description": "Success",
+              "content": {
+                "application/json": {
+                  "schema": makeArrayResponseSchema(festivalSchema)
+                }
+              }
+            }
+          }
+        },
+        "post": {
+          "tags": ["Treasury"],
+          "summary": "Schedule a community festival",
+          "description": "Registers a new event with allocated community budget. Requires Admin role.",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": { "type": "string", "example": "Diwali Festival" },
+                    "description": { "type": "string", "example": "Community dinner" },
+                    "date": { "type": "string", "format": "date", "example": "2026-11-08" },
+                    "allocatedBudget": { "type": "number", "example": 35000 }
+                  },
+                  "required": ["name", "date"]
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Festival scheduled successfully",
+              "content": {
+                "application/json": {
+                  "schema": makeResponseSchema(festivalSchema)
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/society/resident/profile": {
+        "get": {
+          "tags": ["Residents"],
+          "summary": "Get logged-in resident profile details",
+          "description": "Fetches detailed resident information with Aadhar numbers masked for security. Requires Resident role.",
+          "responses": {
+            "200": {
+              "description": "Success",
+              "content": {
+                "application/json": {
+                  "schema": makeResponseSchema({
+                    "type": "object",
+                    "properties": {
+                      "id": { "type": "string" },
+                      "name": { "type": "string" },
+                      "phone": { "type": "string" },
+                      "email": { "type": "string" },
+                      "aadharNumber": { "type": "string", "example": "XXXX-XXXX-1234" },
+                      "avatar": { "type": "string", "nullable": true },
+                      "vehicles": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": { "type": "string" },
+                            "plateNumber": { "type": "string" }
+                          }
+                        }
+                      }
+                    }
+                  })
+                }
+              }
+            }
+          }
+        },
+        "put": {
+          "tags": ["Residents"],
+          "summary": "Update resident profile details",
+          "description": "Updates profile details, including name, phone, aadharNumber, avatar, and active registered vehicle plates. Requires Resident role.",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": { "type": "string" },
+                    "phone": { "type": "string" },
+                    "aadharNumber": { "type": "string", "example": "123412341234" },
+                    "avatar": { "type": "string" },
+                    "vehicles": {
+                      "type": "array",
+                      "items": { "type": "string" },
+                      "example": ["MH12AB1234"]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Profile updated successfully",
+              "content": {
+                "application/json": {
+                  "schema": successStatusSchema
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/society/resident/vehicles/search": {
+        "get": {
+          "tags": ["Residents"],
+          "summary": "Search vehicle ownership details",
+          "description": "Searches for a vehicle's owner information by typing its registration plate number. Requires Resident role.",
+          "parameters": [
+            {
+              "name": "plateNumber",
+              "in": "query",
+              "required": true,
+              "schema": { "type": "string" }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Success",
+              "content": {
+                "application/json": {
+                  "schema": makeResponseSchema(vehicleSchema)
+                }
+              }
+            },
+            "404": { "description": "Vehicle plate number not registered" }
+          }
+        }
+      },
+      "/api/society/resident/vehicles/{id}/notify-blocking": {
+        "post": {
+          "tags": ["Residents"],
+          "summary": "Report vehicle parking obstruction",
+          "description": "Sends push alerts and warning emails to the owner of an obstructive vehicle. Requires Resident role.",
+          "parameters": [
+            { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+          ],
+          "responses": {
+            "200": {
+              "description": "Notification dispatched successfully",
+              "content": {
+                "application/json": {
+                  "schema": successStatusSchema
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/society/admin/bookings": {
+        "get": {
+          "tags": ["Amenities"],
+          "summary": "List all amenity booking requests",
+          "description": "Fetches all pending, approved, and rejected amenity slot bookings. Requires Admin role.",
+          "responses": {
+            "200": {
+              "description": "Success",
+              "content": {
+                "application/json": {
+                  "schema": makeArrayResponseSchema(bookingSchema)
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/society/admin/bookings/{id}/respond": {
+        "patch": {
+          "tags": ["Amenities"],
+          "summary": "Approve or reject booking request",
+          "description": "Allows administrative reviews to resolve pending bookings. Requires Admin role.",
+          "parameters": [
+            { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "enum": ["APPROVED", "REJECTED"], "example": "APPROVED" }
+                  },
+                  "required": ["status"]
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Booking status updated",
+              "content": {
+                "application/json": {
+                  "schema": makeResponseSchema(bookingSchema)
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/society/admin/residents": {
+        "post": {
+          "tags": ["Residents"],
+          "summary": "Admin manually add resident member",
+          "description": "Allows society admins to record a new resident contact. Requires Admin role.",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": { "type": "string" },
+                    "email": { "type": "string" },
+                    "phone": { "type": "string" },
+                    "aadharNumber": { "type": "string" },
+                    "image": { "type": "string" }
+                  },
+                  "required": ["name", "email"]
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Resident added successfully",
+              "content": {
+                "application/json": {
+                  "schema": successStatusSchema
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/society/admin/residents/{id}": {
+        "put": {
+          "tags": ["Residents"],
+          "summary": "Admin edit resident contact details",
+          "description": "Allows admins to modify names, email addresses, and phone records of a member. Requires Admin role.",
+          "parameters": [
+            { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": { "type": "string" },
+                    "email": { "type": "string" },
+                    "phone": { "type": "string" },
+                    "aadharNumber": { "type": "string" },
+                    "image": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Resident details updated successfully"
+            }
+          }
+        },
+        "delete": {
+          "tags": ["Residents"],
+          "summary": "Admin remove resident contact",
+          "description": "Deletes a resident contact record from the directory list. Requires Admin role.",
+          "parameters": [
+            { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+          ],
+          "responses": {
+            "200": {
+              "description": "Resident removed successfully"
+            }
+          }
+        }
+      },
+      "/api/society/admin/flats/allocate": {
+        "put": {
+          "tags": ["Setup"],
+          "summary": "Allocate a flat unit",
+          "description": "Assigns a specific flat unit to a user. Requires Admin role.",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "userId": { "type": "string" },
+                    "flatId": { "type": "string" },
+                    "role": { "type": "string", "enum": ["owner", "tenant"] }
+                  },
+                  "required": ["userId", "flatId", "role"]
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Flat unit allocated successfully"
+            }
+          }
+        }
+      },
+      "/api/society/admin/payment/config": {
+        "get": {
+          "tags": ["Dues"],
+          "summary": "Get Razorpay accounts config",
+          "description": "Retrieves the Razorpay credential parameters. Requires Admin role.",
+          "responses": {
+            "200": {
+              "description": "Success",
+              "content": {
+                "application/json": {
+                  "schema": makeResponseSchema(paymentConfigSchema)
+                }
+              }
+            }
+          }
+        },
+        "put": {
+          "tags": ["Dues"],
+          "summary": "Update Razorpay configuration",
+          "description": "Updates or sets dynamic Razorpay secret keys for routing billing transactions. Requires Admin role.",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "razorpayKeyId": { "type": "string" },
+                    "razorpayKeySecret": { "type": "string" }
+                  },
+                  "required": ["razorpayKeyId", "razorpayKeySecret"]
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Razorpay keys updated successfully"
+            }
+          }
+        }
+      },
+      "/api/society/admin/staff/{id}/aadhar-url": {
+        "get": {
+          "tags": ["Staff"],
+          "summary": "Get staff secure Aadhar view URL",
+          "description": "Retrieves a short-lived, signed download URL for the target staff provider's Aadhar attachment. Requires Admin role.",
+          "parameters": [
+            { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+          ],
+          "responses": {
+            "200": {
+              "description": "Success",
+              "content": {
+                "application/json": {
+                  "schema": makeResponseSchema({
+                    "type": "object",
+                    "properties": {
+                      "url": { "type": "string", "example": "https://res.cloudinary.com/..." }
+                    }
+                  })
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/society/admin/staff/{id}/avatar": {
+        "delete": {
+          "tags": ["Staff"],
+          "summary": "Delete staff avatar file",
+          "description": "Deletes the staff member's profile image from Cloudinary and updates their record. Requires Admin role.",
+          "parameters": [
+            { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+          ],
+          "responses": {
+            "200": {
+              "description": "Avatar removed successfully"
+            }
+          }
+        }
+      },
+      "/api/society/admin/staff/{id}/aadhar": {
+        "delete": {
+          "tags": ["Staff"],
+          "summary": "Delete staff Aadhar attachment file",
+          "description": "Deletes the staff member's private Aadhar document attachment from Cloudinary and updates their record. Requires Admin role.",
+          "parameters": [
+            { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+          ],
+          "responses": {
+            "200": {
+              "description": "Aadhar attachment removed successfully"
+            }
+          }
+        }
+      },
+      "/api/society/media/signature": {
+        "get": {
+          "tags": ["Media"],
+          "summary": "Get Cloudinary upload signature",
+          "description": "Generates a dynamic secure upload signature for client-side uploads. Requires Resident or Admin roles.",
+          "parameters": [
+            { "name": "folder", "in": "query", "required": true, "schema": { "type": "string", "enum": ["profiles", "documents"] } },
+            { "name": "type", "in": "query", "required": true, "schema": { "type": "string", "enum": ["public", "private"] } }
+          ],
+          "responses": {
+            "200": {
+              "description": "Success",
+              "content": {
+                "application/json": {
+                  "schema": makeResponseSchema({
+                    "type": "object",
+                    "properties": {
+                      "signature": { "type": "string" },
+                      "timestamp": { "type": "number" },
+                      "apiKey": { "type": "string" },
+                      "cloudName": { "type": "string" },
+                      "folder": { "type": "string" },
+                      "type": { "type": "string" }
+                    }
+                  })
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/society/media/aadhar-url": {
+        "get": {
+          "tags": ["Media"],
+          "summary": "Get own secure Aadhar view URL",
+          "description": "Retrieves a short-lived, signed download URL for the logged-in resident's own Aadhar card attachment. Requires Resident role.",
+          "responses": {
+            "200": {
+              "description": "Success",
+              "content": {
+                "application/json": {
+                  "schema": makeResponseSchema({
+                    "type": "object",
+                    "properties": {
+                      "url": { "type": "string" }
+                    }
+                  })
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/society/media/avatar": {
+        "delete": {
+          "tags": ["Media"],
+          "summary": "Delete own profile photo",
+          "description": "Deletes the logged-in resident's own profile photo from Cloudinary and database. Requires Resident role.",
+          "responses": {
+            "200": {
+              "description": "Avatar removed successfully"
+            }
+          }
+        }
+      },
+      "/api/society/media/aadhar": {
+        "delete": {
+          "tags": ["Media"],
+          "summary": "Delete own Aadhar attachment",
+          "description": "Deletes the logged-in resident's own private Aadhar document attachment from Cloudinary and database. Requires Resident role.",
+          "responses": {
+            "200": {
+              "description": "Aadhar attachment removed successfully"
+            }
+          }
+        }
+      }
+    }
+  };

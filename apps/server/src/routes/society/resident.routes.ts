@@ -23,6 +23,9 @@ router.get("/visitors/pending", ResidentSocietyController.getPendingGateCalls);
 router.patch("/visitors/:id/respond", ResidentSocietyController.respondToVisitor);
 router.post("/visitors/pre-approve", ResidentSocietyController.preApproveGuest);
 
+// Helpdesk complaints
+router.post("/complaints", ResidentSocietyController.createComplaint);
+
 // Amenity bookings
 router.post("/amenities/book", ResidentSocietyController.bookAmenity);
 

@@ -80,6 +80,18 @@ export class AdminSocietyController {
     }
   }
 
+  // Delete notice
+  static async deleteNotice(c: Context) {
+    try {
+      const societyId = c.get("societyId");
+      const noticeId = c.req.param("id")!;
+      await AdminSocietyService.deleteNotice(societyId, noticeId);
+      return successResponse(c, { success: true });
+    } catch (err: any) {
+      return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
+    }
+  }
+
   // Create poll
   static async createPoll(c: Context) {
     try {

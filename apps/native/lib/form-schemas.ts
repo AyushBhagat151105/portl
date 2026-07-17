@@ -46,6 +46,9 @@ export const setupStructureSchema = z.object({
 export const createNoticeSchema = z.object({
   title: z.string().min(1, "Notice title is required"),
   content: z.string().min(1, "Notice content is required"),
+  banner: z.string().optional().nullable(),
+  bannerPublicId: z.string().optional().nullable(),
+  endDate: z.string().optional().nullable(),
 });
 
 export const createPollSchema = z.object({
@@ -84,6 +87,8 @@ export const raiseComplaintSchema = z.object({
   description: z.string().min(1, "Description is required"),
   category: z.enum(["PLUMBING", "ELECTRICAL", "SECURITY", "CLEANLINESS", "OTHERS"]),
   flatId: z.string().min(1, "Please select your flat"),
+  images: z.array(z.string()).optional(),
+  imagePublicIds: z.array(z.string()).optional(),
 });
 
 export const preApproveGuestSchema = z.object({

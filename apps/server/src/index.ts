@@ -31,7 +31,11 @@ app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 
 // Scalar OpenAPI specs reference
 app.get("/openapi.json", (c) => c.json(openapiSpec));
-app.get("/reference", Scalar({ url: "/openapi.json" }));
+app.get("/reference", Scalar({
+  sources: [
+    { url: "/openapi.json", title: "App API" },
+    {url: "/api/auth/open-api/generate-schema", title: "Auth"}
+] }));
 
 // Mount role-specific society routes
 app.route("/api/society/admin/treasury", treasuryRouter);

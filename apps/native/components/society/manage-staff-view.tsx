@@ -11,6 +11,8 @@ import {
   Modal,
   Image,
   Linking,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -538,7 +540,10 @@ export function ManageStaffView() {
 
       {/* CREATE MODAL */}
       <Modal visible={createModalVisible} transparent animationType="fade">
-        <View className="flex-1 justify-center items-center bg-black/60 px-4">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          className="flex-1 justify-center items-center bg-black/60 px-4"
+        >
           <View className="bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-3xl p-5 w-full max-w-[340px] gap-4">
             <View className="flex-row justify-between items-center">
               <Text className="text-foreground-light dark:text-foreground-dark font-bold text-sm">Add Staff</Text>
@@ -698,12 +703,15 @@ export function ManageStaffView() {
               )}
             </Pressable>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* EDIT MODAL */}
       <Modal visible={editModalVisible} transparent animationType="fade">
-        <View className="flex-1 justify-center items-center bg-black/60 px-4">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          className="flex-1 justify-center items-center bg-black/60 px-4"
+        >
           <View className="bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-3xl p-5 w-full max-w-[340px] gap-4">
             <View className="flex-row justify-between items-center">
               <Text className="text-foreground-light dark:text-foreground-dark font-bold text-sm">Edit Details</Text>
@@ -869,7 +877,7 @@ export function ManageStaffView() {
               )}
             </Pressable>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </ScreenContainer>
   );

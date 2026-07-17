@@ -1,5 +1,5 @@
 import React from "react";
-import { ScrollView, Text, View, Pressable, ActivityIndicator, useColorScheme } from "react-native";
+import { ScrollView, Text, View, Pressable, ActivityIndicator, useColorScheme, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Chip } from "heroui-native";
 import {
@@ -8,6 +8,7 @@ import {
   useVotePollMutation,
   usePendingGateCallsQuery,
   useRespondVisitorMutation,
+  useDeleteNoticeMutation,
 } from "../../queries/society";
 import { useClosePollMutation } from "../../queries/admin";
 import { useSocietyStore } from "@/store/useSocietyStore";
@@ -115,12 +116,27 @@ function GateCallsSection() {
 
 function NoticesList() {
   const { data: notices, isLoading } = useNoticesQuery();
+  const colorScheme = useColorScheme();
+  const primaryColor = colorScheme === "dark" ? "#f97316" : "#b45309";
+  const deleteMutation = useDeleteNoticeMutation();
+  const { currentRole } = useSocietyStore();
+  const { showToast } = useToastStore();
+
+  const handleDelete = async (noticeId: string) => {
+    try {
+      await deleteMutation.mutateAsync(noticeId);
+      showToast("Notice deleted successfully!", "success");
+    } catch (err: any) {
+      showToast(err.message || "Failed to delete notice", "error");
+    }
+  };
 
   if (isLoading) return <Loader fullscreen={false} />;
   if (!notices || notices.length === 0) {
     return (
-      <Card className="p-5 items-center">
-        <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs">
+      <Card className="p-6 items-center border border-border-light dark:border-border-dark">
+        <Ionicons name="notifications-off-outline" size={24} color="#78716c" />
+        <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs mt-2">
           No notice announcements published.
         </Text>
       </Card>
@@ -128,16 +144,51 @@ function NoticesList() {
   }
 
   return notices.map((not: any) => (
-    <Card key={not.id} className="mb-3">
-      <CardTitle>{not.title}</CardTitle>
-      <CardDescription>{not.content}</CardDescription>
-      <View className="flex-row justify-between items-center border-t border-border-light dark:border-border-dark pt-2.5 mt-2">
-        <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs">
-          By {not.author.name}
+    <Card key={not.id} className="mb-4 overflow-hidden border border-border-light dark:border-border-dark p-0">
+      {not.banner ? (
+        <Image source={{ uri: not.banner }} className="w-full h-36 object-cover" />
+      ) : null}
+      <View className="p-4 gap-2.5">
+        <View className="flex-row items-center justify-between">
+          <Text className="text-foreground-light dark:text-foreground-dark font-extrabold text-sm flex-1 mr-2 leading-snug">
+            {not.title}
+          </Text>
+          <View className="flex-row items-center gap-2">
+            {currentRole === "admin" && (
+              <Pressable
+                disabled={deleteMutation.isPending}
+                onPress={() => handleDelete(not.id)}
+                className="w-6 h-6 rounded-full bg-rose-500/10 items-center justify-center active:scale-95"
+              >
+                <Ionicons name="trash" size={13} color="#f43f5e" />
+              </Pressable>
+            )}
+            <Ionicons name="volume-medium-outline" size={16} color={primaryColor} />
+          </View>
+        </View>
+        <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs leading-relaxed">
+          {not.content}
         </Text>
-        <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs">
-          {new Date(not.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}
-        </Text>
+        <View className="flex-row justify-between items-center border-t border-border-light/60 dark:border-border-dark/60 pt-3 mt-1.5">
+          <View className="flex-row items-center gap-1.5">
+            {not.author?.image ? (
+              <Image source={{ uri: not.author.image }} className="w-4 h-4 rounded-full" />
+            ) : (
+              <View className="w-4 h-4 rounded-full bg-muted-light dark:bg-muted-dark items-center justify-center">
+                <Ionicons name="person" size={8} color="#78716c" />
+              </View>
+            )}
+            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-bold">
+              {not.author?.name}
+            </Text>
+          </View>
+          <View className="flex-row items-center gap-1">
+            <Ionicons name="calendar-outline" size={10} color="#78716c" />
+            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[10px] font-medium">
+              {new Date(not.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}
+            </Text>
+          </View>
+        </View>
       </View>
     </Card>
   ));

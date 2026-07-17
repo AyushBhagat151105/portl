@@ -75,7 +75,14 @@ export function useVotePollMutation() {
 export function useRaiseComplaintMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { title: string; description: string; category: string; flatId?: string }) => {
+    mutationFn: async (data: {
+      title: string;
+      description: string;
+      category: string;
+      flatId?: string;
+      images?: string[];
+      imagePublicIds?: string[];
+    }) => {
       const res = await api.post("/api/society/resident/complaints", data);
       return res.data?.data;
     },
@@ -168,9 +175,11 @@ export function useUpdateProfileMutation() {
       return res.data?.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
-      queryClient.invalidateQueries({ queryKey: queryKeys.membership() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.members() });
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["profile"] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.membership() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.members() }),
+      ]);
     },
   });
 }
@@ -220,9 +229,11 @@ export function useDeleteAvatarMutation() {
       return res.data?.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
-      queryClient.invalidateQueries({ queryKey: queryKeys.membership() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.members() });
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["profile"] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.membership() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.members() }),
+      ]);
     },
   });
 }
@@ -236,8 +247,10 @@ export function useDeleteAadharMutation() {
       return res.data?.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
-      queryClient.invalidateQueries({ queryKey: ["profile", "aadhar-url"] });
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["profile"] }),
+        queryClient.invalidateQueries({ queryKey: ["profile", "aadhar-url"] }),
+      ]);
     },
   });
 }

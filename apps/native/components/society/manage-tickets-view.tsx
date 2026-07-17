@@ -1,6 +1,7 @@
-import React from "react";
-import { ScrollView, Text, View, Pressable } from "react-native";
+import React, { useState } from "react";
+import { ScrollView, Text, View, Pressable, Image, Modal } from "react-native";
 import { Chip } from "heroui-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useComplaintsQuery, useUpdateComplaintMutation } from "../../queries/society";
 import { useToastStore } from "../../store/useToastStore";
 import { ScreenContainer } from "../ui/screen-container";
@@ -11,6 +12,7 @@ export function ManageTicketsView() {
   const { data: tickets, isLoading: ticketsLoading } = useComplaintsQuery();
   const updateMutation = useUpdateComplaintMutation();
   const { showToast } = useToastStore();
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const handleUpdateStatus = async (complaintId: string, status: "PENDING" | "IN_PROGRESS" | "RESOLVED") => {
     try {
@@ -64,6 +66,20 @@ export function ManageTicketsView() {
               </Chip>
             </View>
 
+            {comp.images && comp.images.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row gap-2 mt-2 mb-1">
+                {comp.images.map((img: string, idx: number) => (
+                  <Pressable
+                    key={img + idx}
+                    onPress={() => setSelectedImage(img)}
+                    className="border border-border-light dark:border-border-dark rounded-xl overflow-hidden mr-2 active:scale-95"
+                  >
+                    <Image source={{ uri: img }} className="w-20 h-20 object-cover" />
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+
             <View className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark p-2.5 rounded-xl flex-row justify-between items-center my-3.5">
               <View>
                 <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs uppercase tracking-wider font-semibold">
@@ -105,6 +121,26 @@ export function ManageTicketsView() {
           </Card>
         ))
       )}
+
+      {/* Full-Screen Image Viewer Modal */}
+      <Modal
+        visible={!!selectedImage}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedImage(null)}
+      >
+        <View className="flex-1 bg-black/95 justify-center items-center relative">
+          {selectedImage && (
+            <Image source={{ uri: selectedImage }} className="w-full h-5/6" resizeMode="contain" />
+          )}
+          <Pressable
+            onPress={() => setSelectedImage(null)}
+            className="absolute top-12 right-6 w-10 h-10 rounded-full bg-white/20 items-center justify-center active:scale-95"
+          >
+            <Ionicons name="close" size={24} color="white" />
+          </Pressable>
+        </View>
+      </Modal>
     </ScreenContainer>
   );
 }

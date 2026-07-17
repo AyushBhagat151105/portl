@@ -419,4 +419,36 @@ export class ResidentSocietyService {
 
     return { success: true };
   }
+
+  // 13. Create a support ticket complaint
+  static async createComplaint(
+    userId: string,
+    data: {
+      title: string;
+      description: string;
+      category: string;
+      flatId?: string | null;
+      images?: string[];
+      imagePublicIds?: string[];
+    }
+  ): Promise<any> {
+    const member = await prisma.member.findFirst({
+      where: { userId },
+    });
+    if (!member) throw new Error("User is not a member of any society");
+
+    return await prisma.complaint.create({
+      data: {
+        title: data.title,
+        description: data.description,
+        category: data.category,
+        flatId: data.flatId || null,
+        organizationId: member.organizationId,
+        raisedById: userId,
+        status: "PENDING",
+        images: data.images || [],
+        imagePublicIds: data.imagePublicIds || [],
+      },
+    });
+  }
 }

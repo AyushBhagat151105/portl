@@ -34,6 +34,37 @@ export async function sendPushNotification(userId: string, title: string, body: 
 export class CommonSocietyService {
   // Get notices list
   static async getNotices(societyId: string): Promise<any[]> {
+    // Auto delete expired notices
+    try {
+      const expiredNotices = await prisma.notice.findMany({
+        where: {
+          organizationId: societyId,
+          endDate: {
+            lt: new Date(),
+          },
+        },
+        select: { id: true, bannerPublicId: true },
+      });
+
+      for (const not of expiredNotices) {
+        if (not.bannerPublicId) {
+          try {
+            await destroyAsset(not.bannerPublicId, false);
+          } catch (err) {
+            console.error("Failed to delete expired notice banner:", err);
+          }
+        }
+      }
+
+      if (expiredNotices.length > 0) {
+        await prisma.notice.deleteMany({
+          where: { id: { in: expiredNotices.map((n) => n.id) } },
+        });
+      }
+    } catch (err) {
+      console.error("Failed to clean up expired notices:", err);
+    }
+
     return await prisma.notice.findMany({
       where: { organizationId: societyId },
       include: {
@@ -91,6 +122,43 @@ export class CommonSocietyService {
 
   // Get complaints (helpdesk) list
   static async getComplaints(societyId: string, userId?: string, isAdmin = false): Promise<any[]> {
+    // Auto delete resolved complaints older than 2 days
+    try {
+      const twoDaysAgo = new Date();
+      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+
+      const expiredComplaints = await prisma.complaint.findMany({
+        where: {
+          organizationId: societyId,
+          status: "RESOLVED",
+          resolvedAt: {
+            lt: twoDaysAgo,
+          },
+        },
+        select: { id: true, imagePublicIds: true },
+      });
+
+      for (const comp of expiredComplaints) {
+        if (comp.imagePublicIds && comp.imagePublicIds.length > 0) {
+          for (const pubId of comp.imagePublicIds) {
+            try {
+              await destroyAsset(pubId, false);
+            } catch (err) {
+              console.error("Failed to delete expired complaint image:", err);
+            }
+          }
+        }
+      }
+
+      if (expiredComplaints.length > 0) {
+        await prisma.complaint.deleteMany({
+          where: { id: { in: expiredComplaints.map((c) => c.id) } },
+        });
+      }
+    } catch (err) {
+      console.error("Failed to clean up expired complaints:", err);
+    }
+
     if (isAdmin) {
       return await prisma.complaint.findMany({
         where: { organizationId: societyId },

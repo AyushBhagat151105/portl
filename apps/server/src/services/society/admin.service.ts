@@ -105,13 +105,19 @@ export class AdminSocietyService {
   }
 
   // 4. Publish a notice and notify all residents
-  static async createNotice(societyId: string, authorId: string, data: { title: string; content: string }): Promise<any> {
+  static async createNotice(
+    societyId: string,
+    authorId: string,
+    data: { title: string; content: string; banner?: string | null; bannerPublicId?: string | null }
+  ): Promise<any> {
     const notice = await prisma.notice.create({
       data: {
         title: data.title,
         content: data.content,
         authorId,
         organizationId: societyId,
+        banner: data.banner || null,
+        bannerPublicId: data.bannerPublicId || null,
       },
     });
 
@@ -191,7 +197,10 @@ export class AdminSocietyService {
   static async updateComplaint(complaintId: string, status: "PENDING" | "IN_PROGRESS" | "RESOLVED"): Promise<any> {
     const complaint = await prisma.complaint.update({
       where: { id: complaintId },
-      data: { status },
+      data: {
+        status,
+        resolvedAt: status === "RESOLVED" ? new Date() : null,
+      },
     });
 
     const title = "Complaint Ticket Updated 🛠️";
@@ -210,6 +219,26 @@ export class AdminSocietyService {
     await QueueService.pushNotificationJob(complaint.raisedById, title, body, "COMPLAINT");
 
     return complaint;
+  }
+
+  // Delete notice announcement and its banner from Cloudinary
+  static async deleteNotice(societyId: string, noticeId: string): Promise<any> {
+    const notice = await prisma.notice.findFirst({
+      where: { id: noticeId, organizationId: societyId },
+    });
+    if (!notice) throw new Error("Notice announcement not found");
+
+    if (notice.bannerPublicId) {
+      try {
+        await destroyAsset(notice.bannerPublicId, false);
+      } catch (err) {
+        console.error("Failed to delete notice banner:", err);
+      }
+    }
+
+    return await prisma.notice.delete({
+      where: { id: noticeId },
+    });
   }
 
   // 7. Create a new amenity

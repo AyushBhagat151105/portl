@@ -1,6 +1,4 @@
-import { File, Paths } from "expo-file-system";
-import * as Sharing from "expo-sharing";
-import * as Print from "expo-print";
+import { shareCSV, sharePDF } from "./export-utils";
 
 export type DueRecord = {
   id: string;
@@ -42,16 +40,7 @@ export async function exportDuesAsCSV(dues: DueRecord[], month?: string) {
   const content = [header, ...rows].join("\n");
   const fileName = `portl_dues_${month?.replace(/\s/g, "_") ?? "all"}.csv`;
 
-  const file = new File(Paths.cache, fileName);
-  await file.write(content);
-
-  if (await Sharing.isAvailableAsync()) {
-    await Sharing.shareAsync(file.uri, {
-      mimeType: "text/csv",
-      dialogTitle: `Export Dues – ${month ?? "All Months"}`,
-      UTI: "public.comma-separated-values-text",
-    });
-  }
+  await shareCSV(content, fileName, `Export Dues – ${month ?? "All Months"}`);
 }
 
 
@@ -146,21 +135,6 @@ export async function exportDuesAsPDF(dues: DueRecord[], month?: string) {
     </body>
     </html>`;
 
-  const { uri: tmpUri } = await Print.printToFileAsync({ html, base64: false });
-
   const fileName = `portl_dues_${month?.replace(/\s/g, "_") ?? "all"}.pdf`;
-  const destFile = new File(Paths.cache, fileName);
-
-  // Move the generated PDF to our named cache file
-  const tmpFile = new File(tmpUri);
-  const pdfBytes = await tmpFile.bytes();
-  await destFile.write(pdfBytes);
-
-  if (await Sharing.isAvailableAsync()) {
-    await Sharing.shareAsync(destFile.uri, {
-      mimeType: "application/pdf",
-      dialogTitle: `Export Dues – ${month ?? "All Months"}`,
-      UTI: "com.adobe.pdf",
-    });
-  }
+  await sharePDF(html, fileName, `Export Dues – ${month ?? "All Months"}`);
 }

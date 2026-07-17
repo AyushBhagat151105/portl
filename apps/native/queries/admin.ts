@@ -6,8 +6,28 @@ import { queryKeys, type DuesFilters } from "./keys";
 export function useCreateNoticeMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { title: string; content: string }) => {
+    mutationFn: async (data: {
+      title: string;
+      content: string;
+      banner?: string | null;
+      bannerPublicId?: string | null;
+      endDate?: string | null;
+    }) => {
       const res = await api.post("/api/society/admin/notices", data);
+      return res.data?.data;
+    },
+    onSuccess: () => {
+      return queryClient.invalidateQueries({ queryKey: queryKeys.notices() });
+    },
+  });
+}
+
+// Delete notice announcement
+export function useDeleteNoticeMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (noticeId: string) => {
+      const res = await api.delete(`/api/society/admin/notices/${noticeId}`);
       return res.data?.data;
     },
     onSuccess: () => {
@@ -280,10 +300,14 @@ export function usePaymentConfigQuery() {
 }
 
 export function useUpdatePaymentConfigMutation() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (data: { razorpayKeyId: string; razorpayKeySecret: string }) => {
       const res = await api.put("/api/society/admin/payment/config", data);
       return res.data?.data;
+    },
+    onSuccess: () => {
+      return queryClient.invalidateQueries({ queryKey: ["paymentConfig"] });
     },
   });
 }
@@ -332,7 +356,7 @@ export function useCreateBudgetMutation() {
       return res.data?.data;
     },
     onSuccess: () => {
-      return queryClient.invalidateQueries({ queryKey: queryKeys.treasury.budgets() });
+      return queryClient.invalidateQueries({ queryKey: ["treasury"] });
     },
   });
 }
@@ -356,8 +380,7 @@ export function useCreateExpenseMutation() {
       return res.data?.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.treasury.expenses() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.treasury.budgets() });
+      return queryClient.invalidateQueries({ queryKey: ["treasury"] });
     },
   });
 }
@@ -381,8 +404,7 @@ export function useCreateFestivalMutation() {
       return res.data?.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.treasury.festivals() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.treasury.budgets() });
+      return queryClient.invalidateQueries({ queryKey: ["treasury"] });
     },
   });
 }
@@ -410,7 +432,7 @@ export function useDeleteStaffAvatarMutation() {
       return res.data?.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.staff() });
+      return queryClient.invalidateQueries({ queryKey: queryKeys.staff() });
     },
   });
 }
@@ -424,7 +446,7 @@ export function useDeleteStaffAadharMutation() {
       return res.data?.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.staff() });
+      return queryClient.invalidateQueries({ queryKey: queryKeys.staff() });
     },
   });
 }

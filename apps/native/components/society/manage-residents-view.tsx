@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ScrollView, Text, View, Pressable, ActivityIndicator, TextInput, Modal } from "react-native";
+import { ScrollView, Text, View, Pressable, ActivityIndicator, TextInput, Modal, KeyboardAvoidingView, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useColorScheme } from "react-native";
 import {
@@ -352,7 +352,10 @@ export function ManageResidentsView() {
 
       {/* CREATE RESIDENT MODAL */}
       <Modal visible={residentModalVisible} transparent animationType="fade">
-        <View className="flex-1 justify-center items-center bg-black/60 px-4">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          className="flex-1 justify-center items-center bg-black/60 px-4"
+        >
           <View className="bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-3xl p-5 w-full max-w-[340px] gap-4">
             <View className="flex-row justify-between items-center">
               <Text className="text-foreground-light dark:text-foreground-dark font-bold text-sm">Register Resident</Text>
@@ -430,12 +433,15 @@ export function ManageResidentsView() {
               )}
             </Pressable>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* EDIT RESIDENT MODAL */}
       <Modal visible={editResidentModalVisible} transparent animationType="fade">
-        <View className="flex-1 justify-center items-center bg-black/60 px-4">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          className="flex-1 justify-center items-center bg-black/60 px-4"
+        >
           <View className="bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-3xl p-5 w-full max-w-[340px] gap-4">
             <View className="flex-row justify-between items-center">
               <Text className="text-foreground-light dark:text-foreground-dark font-bold text-sm">Edit Profile</Text>
@@ -498,12 +504,15 @@ export function ManageResidentsView() {
               )}
             </Pressable>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* FLAT ALLOCATION MODAL */}
       <Modal visible={allocationModalVisible} transparent animationType="fade">
-        <View className="flex-1 justify-center items-center bg-black/60 px-4">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          className="flex-1 justify-center items-center bg-black/60 px-4"
+        >
           <View className="bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-3xl p-5 w-full max-w-[340px] gap-4">
             <View className="flex-row justify-between items-center">
               <Text className="text-foreground-light dark:text-foreground-dark font-bold text-sm">Flat Configuration</Text>
@@ -639,7 +648,7 @@ export function ManageResidentsView() {
               )}
             </Pressable>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </ScreenContainer>
   );

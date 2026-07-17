@@ -71,6 +71,9 @@ model Notice {
   id             String       @id @default(uuid())
   title          String
   content        String
+  banner         String?
+  bannerPublicId String?
+  endDate        DateTime?
   authorId       String
   author         User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
   organizationId String
@@ -119,6 +122,9 @@ model Complaint {
   description    String
   category       String       // e.g. "PLUMBING", "ELECTRICAL", "SECURITY", "CLEANLINESS"
   status         String       @default("PENDING") // PENDING, IN_PROGRESS, RESOLVED
+  resolvedAt     DateTime?
+  images         String[]
+  imagePublicIds String[]
   raisedById     String
   raisedBy       User         @relation(fields: [raisedById], references: [id], onDelete: Cascade)
   flatId         String?

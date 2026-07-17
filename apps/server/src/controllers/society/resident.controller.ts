@@ -8,6 +8,7 @@ import {
   votePollSchema,
   verifyPaymentSchema,
   updateProfileSchema,
+  raiseComplaintSchema,
 } from "../../schemas/society.schema";
 
 export class ResidentSocietyController {
@@ -203,6 +204,23 @@ export class ResidentSocietyController {
       const vehicleId = c.req.param("id")!;
       const result = await ResidentSocietyService.notifyVehicleBlocking(societyId, userId, vehicleId);
       return successResponse(c, result);
+    } catch (err: any) {
+      return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
+    }
+  }
+
+  // Raise complaint ticket
+  static async createComplaint(c: Context) {
+    try {
+      const userId = c.get("userId");
+      const body = await c.req.json();
+      const parsed = raiseComplaintSchema.safeParse(body);
+      if (!parsed.success) {
+        return errorResponse(c, "Invalid request payload", "VALIDATION_ERROR", 400, parsed.error.format());
+      }
+
+      const result = await ResidentSocietyService.createComplaint(userId, parsed.data);
+      return successResponse(c, result, 201);
     } catch (err: any) {
       return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
     }

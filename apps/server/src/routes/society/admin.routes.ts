@@ -20,8 +20,9 @@ router.delete("/residents/:id", AdminSocietyController.deleteResident);
 // Flat Allocation
 router.put("/flats/allocate", AdminSocietyController.allocateFlat);
 
-// Notice publication
+// Notice publication and removal
 router.post("/notices", AdminSocietyController.createNotice);
+router.delete("/notices/:id", AdminSocietyController.deleteNotice);
 
 // Poll creation
 router.post("/polls", AdminSocietyController.createPoll);
