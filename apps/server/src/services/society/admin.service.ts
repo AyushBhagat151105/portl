@@ -84,6 +84,7 @@ export class AdminSocietyService {
             email: true,
             image: true,
             aadharNumber: true,
+            aadharPublicId: true,
             vehicleNumber: true,
             vehicles: true,
             flats: {
@@ -510,7 +511,7 @@ export class AdminSocietyService {
   // 13. Create Resident Manually
   static async createResident(
     societyId: string,
-    data: { name: string; email: string; phone?: string; aadharNumber?: string; image?: string }
+    data: { name: string; email: string; phone?: string; aadharNumber?: string; image?: string; aadharPublicId?: string }
   ): Promise<any> {
     const existing = await prisma.user.findUnique({
       where: { email: data.email },
@@ -525,6 +526,7 @@ export class AdminSocietyService {
           email: data.email,
           aadharNumber: data.aadharNumber,
           image: data.image,
+          aadharPublicId: data.aadharPublicId,
         },
       });
     }
@@ -550,12 +552,40 @@ export class AdminSocietyService {
   // 14. Update Resident Profile
   static async updateResident(
     userId: string,
-    data: { name?: string; email?: string; aadharNumber?: string | null; image?: string | null }
+    data: { name?: string; email?: string; aadharNumber?: string | null; image?: string | null; aadharPublicId?: string | null }
   ): Promise<any> {
+    const currentUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { image: true, aadharPublicId: true },
+    });
+
+    // 1. If avatar image has changed or is deleted, destroy old Cloudinary asset
+    if (data.image !== undefined && data.image !== currentUser?.image && currentUser?.image) {
+      const oldPublicId = extractPublicId(currentUser.image);
+      if (oldPublicId) {
+        await destroyAsset(oldPublicId, false);
+      }
+    }
+
+    // 2. If Aadhar file has changed or is deleted, destroy old secure Cloudinary asset
+    if (data.aadharPublicId !== undefined && data.aadharPublicId !== currentUser?.aadharPublicId && currentUser?.aadharPublicId) {
+      await destroyAsset(currentUser.aadharPublicId, true);
+    }
+
     return await prisma.user.update({
       where: { id: userId },
       data,
     });
+  }
+
+  // 14b. Get temporary signed download URL for resident Aadhar card (Admin)
+  static async getResidentAadharUrl(societyId: string, userId: string): Promise<string | null> {
+    const member = await prisma.member.findFirst({
+      where: { userId, organizationId: societyId },
+      include: { user: { select: { aadharPublicId: true } } },
+    });
+    if (!member?.user?.aadharPublicId) return null;
+    return generateSignedDownloadUrl(member.user.aadharPublicId);
   }
 
   // 15. Delete Resident / Remove from society

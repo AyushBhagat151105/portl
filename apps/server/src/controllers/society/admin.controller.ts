@@ -406,4 +406,19 @@ export class AdminSocietyController {
       return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
     }
   }
+
+  // Get temporary signed download URL for resident Aadhar card (Admin)
+  static async getResidentAadharUrl(c: Context) {
+    try {
+      const societyId = c.get("societyId");
+      const userId = c.req.param("id")!;
+      const url = await AdminSocietyService.getResidentAadharUrl(societyId, userId);
+      if (!url) {
+        return errorResponse(c, "Resident Aadhar document not found", "NOT_FOUND", 404);
+      }
+      return successResponse(c, { url });
+    } catch (err: any) {
+      return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
+    }
+  }
 }

@@ -229,7 +229,7 @@ export function useUpdateStaffMutation() {
 export function useCreateResidentMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { name: string; email: string; phone?: string; aadharNumber?: string; image?: string }) => {
+    mutationFn: async (data: { name: string; email: string; phone?: string; aadharNumber?: string; image?: string; aadharPublicId?: string }) => {
       const res = await api.post("/api/society/admin/residents", data);
       return res.data?.data;
     },
@@ -419,6 +419,20 @@ export function useStaffAadharSignedUrlQuery(staffId: string | null, enabled: bo
       return res.data?.data?.url ?? null;
     },
     enabled: enabled && !!staffId,
+    staleTime: 1000 * 60 * 5, // 5 mins
+  });
+}
+
+// Resident Aadhar signed URL query (Admin)
+export function useResidentAadharSignedUrlQuery(residentId: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: ["residents", residentId, "aadhar-url"],
+    queryFn: async () => {
+      if (!residentId) return null;
+      const res = await api.get(`/api/society/admin/residents/${residentId}/aadhar-url`);
+      return res.data?.data?.url ?? null;
+    },
+    enabled: enabled && !!residentId,
     staleTime: 1000 * 60 * 5, // 5 mins
   });
 }

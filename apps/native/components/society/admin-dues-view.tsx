@@ -1,9 +1,7 @@
-import React, { useState } from "react";
-import { ScrollView, Text, View, Pressable, TextInput, ActivityIndicator, Modal, Alert, useColorScheme } from "react-native";
-import { Controller, useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { FieldError, Chip } from "heroui-native";
+import React, { useState, useCallback } from "react";
+import { ScrollView, Text, View, Pressable, Alert, useColorScheme } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { Chip } from "heroui-native";
 import {
   useAdminDuesQuery,
   useGenerateDuesMutation,
@@ -15,39 +13,65 @@ import { useToastStore } from "../../store/useToastStore";
 import { ScreenContainer } from "../ui/screen-container";
 import { Card } from "../ui/card";
 import { Loader } from "../ui/loader";
-import { generateDuesSchema, type GenerateDuesFormData } from "@/lib/form-schemas";
+import { SectionHeader } from "../ui/section-header";
 import { exportDuesAsCSV, exportDuesAsPDF, type DueRecord } from "@/lib/dues-export";
+import { GenerateDuesModal } from "./dues/generate-dues-modal";
+import { PaymentConfigModal } from "./dues/payment-config-modal";
+import { ExportDuesModal } from "./dues/export-dues-modal";
+import { type GenerateDuesFormData } from "@/lib/form-schemas";
 
 export function AdminDuesView() {
-  const { data: duesData, isLoading } = useAdminDuesQuery();
+  const { data: duesData, isLoading, refetch: refetchDues } = useAdminDuesQuery();
   const dues = duesData?.data ?? [];
   const generateMutation = useGenerateDuesMutation();
   const markPaidMutation = useMarkDuePaidMutation();
   const { showToast } = useToastStore();
   const colorScheme = useColorScheme();
 
-  const [showPaymentConfig, setShowPaymentConfig] = useState(false);
   const { data: paymentConfig, refetch: refetchPaymentConfig } = usePaymentConfigQuery();
   const updatePaymentConfig = useUpdatePaymentConfigMutation();
-  const [razorpayKeyId, setRazorpayKeyId] = useState("");
-  const [razorpayKeySecret, setRazorpayKeySecret] = useState("");
 
-  React.useEffect(() => {
-    if (paymentConfig) {
-      setRazorpayKeyId(paymentConfig.razorpayKeyId || "");
-      setRazorpayKeySecret(paymentConfig.hasSecret ? "••••••••••••••••" : "");
+  // Modals Visibility
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [showPaymentConfig, setShowPaymentConfig] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  
+  const [isExporting, setIsExporting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([refetchDues(), refetchPaymentConfig()]);
+    } finally {
+      setRefreshing(false);
     }
-  }, [paymentConfig]);
+  }, [refetchDues, refetchPaymentConfig]);
 
-  const handleSavePaymentConfig = async () => {
-    if (!razorpayKeyId.trim() || !razorpayKeySecret.trim()) {
+  const handleGenerateDuesSubmit = async (data: GenerateDuesFormData) => {
+    try {
+      const res = await generateMutation.mutateAsync({
+        amount: Number(data.amount),
+        month: data.month,
+        dueDate: data.dueDate,
+      });
+      showToast(`Billing generated successfully for ${res.generatedCount} flats! 💳`, "success");
+      setShowGenerateModal(false);
+      refetchDues();
+    } catch (err: any) {
+      showToast(err.message || "Failed to generate billing dues", "error");
+    }
+  };
+
+  const handleSavePaymentConfig = async (config: { keyId: string; keySecret: string }) => {
+    if (!config.keyId.trim() || !config.keySecret.trim()) {
       showToast("Please fill in both key ID and secret key", "error");
       return;
     }
     try {
       await updatePaymentConfig.mutateAsync({
-        razorpayKeyId: razorpayKeyId.trim(),
-        razorpayKeySecret: razorpayKeySecret.trim(),
+        razorpayKeyId: config.keyId.trim(),
+        razorpayKeySecret: config.keySecret.trim(),
       });
       showToast("Razorpay credentials saved successfully!", "success");
       refetchPaymentConfig();
@@ -57,105 +81,59 @@ export function AdminDuesView() {
     }
   };
 
-  const [showMonthModal, setShowMonthModal] = useState(false);
-  const [showDateModal, setShowDateModal] = useState(false);
-  const [showExportFilterModal, setShowExportFilterModal] = useState(false);
-  const [selectedExportMonth, setSelectedExportMonth] = useState<string | null>(null);
-  const [isExporting, setIsExporting] = useState(false);
-
-  const { control, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<GenerateDuesFormData>({
-    resolver: zodResolver(generateDuesSchema),
-    mode: "onTouched",
-  });
-
-  const selectedMonth = watch("month");
-
-  const getUpcomingMonths = () => {
-    const months = [];
-    const date = new Date();
-    for (let i = 0; i < 12; i++) {
-      const mStr = date.toLocaleString("en-US", { month: "long", year: "numeric" });
-      months.push(mStr);
-      date.setMonth(date.getMonth() + 1);
-    }
-    return months;
+  const handleMarkPaid = (dueId: string, residentName: string, flatNumber: string) => {
+    Alert.alert(
+      "Reconcile Bill",
+      `Mark maintenance bill for ${residentName} (Flat ${flatNumber}) as Paid? This will record manual collection status in registry.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Confirm Paid",
+          style: "default",
+          onPress: async () => {
+            try {
+              await markPaidMutation.mutateAsync(dueId);
+              showToast("Payment status reconciled successfully!", "success");
+              refetchDues();
+            } catch (err: any) {
+              showToast(err.message || "Failed to reconcile status", "error");
+            }
+          },
+        },
+      ]
+    );
   };
 
-  const getDaysInMonth = (monthStr: string) => {
-    let year = new Date().getFullYear();
-    let monthIndex = new Date().getMonth();
-    
-    if (monthStr) {
-      const parts = monthStr.split(" ");
-      if (parts.length === 2) {
-        const m = parts[0];
-        const y = parseInt(parts[1], 10);
-        if (!isNaN(y)) year = y;
-        
-        const monthsList = [
-          "January", "February", "March", "April", "May", "June",
-          "July", "August", "September", "October", "November", "December"
-        ];
-        const idx = monthsList.indexOf(m);
-        if (idx !== -1) monthIndex = idx;
-      }
-    }
-
-    const numDays = new Date(year, monthIndex + 1, 0).getDate();
-    return {
-      year,
-      monthIndex,
-      days: Array.from({ length: numDays }, (_, i) => i + 1),
-    };
-  };
-
-  const onSubmit = async (data: GenerateDuesFormData) => {
-    try {
-      const res = await generateMutation.mutateAsync({
-        amount: Number(data.amount),
-        month: data.month,
-        dueDate: data.dueDate,
-      });
-      showToast(`Billing generated successfully for ${res.generatedCount} flats! 💳`, "success");
-      reset();
-    } catch (err: any) {
-      showToast(err.message || "Failed to generate billing dues", "error");
-    }
-  };
-
-  const handleMarkPaid = async (dueId: string) => {
-    try {
-      await markPaidMutation.mutateAsync(dueId);
-      showToast("Payment status reconciled successfully!", "success");
-    } catch (err: any) {
-      showToast(err.message || "Failed to reconcile status", "error");
-    }
-  };
-
-  const handleExport = async (format: "csv" | "excel" | "pdf") => {
+  const handleExportSubmit = async (config: {
+    format: "pdf" | "csv";
+    month: string | null;
+  }) => {
     if (!dues || dues.length === 0) {
       showToast("No dues data to export.", "info");
       return;
     }
-    const filtered: DueRecord[] = selectedExportMonth
-      ? dues.filter((d: any) => d.month === selectedExportMonth)
+    const filtered: DueRecord[] = config.month
+      ? dues.filter((d: any) => d.month === config.month)
       : dues;
 
     if (filtered.length === 0) {
-      showToast(`No dues found for ${selectedExportMonth}.`, "info");
+      showToast(`No dues found for ${config.month}.`, "info");
       return;
     }
 
     setIsExporting(true);
     try {
-      if (format === "csv") await exportDuesAsCSV(filtered, selectedExportMonth ?? undefined);
-      else await exportDuesAsPDF(filtered, selectedExportMonth ?? undefined);
-      showToast(`Exported ${filtered.length} records as ${format.toUpperCase()}! 📄`, "success");
+      if (config.format === "csv") {
+        await exportDuesAsCSV(filtered);
+      } else {
+        await exportDuesAsPDF(filtered);
+      }
+      showToast("Data exported successfully! 📄", "success");
+      setShowExportModal(false);
     } catch (err: any) {
       showToast(err.message || "Export failed", "error");
     } finally {
       setIsExporting(false);
-      setShowExportFilterModal(false);
     }
   };
 
@@ -163,462 +141,170 @@ export function AdminDuesView() {
     return <Loader />;
   }
 
-  const outstandingCount = dues?.filter((d: any) => d.status === "PENDING").length ?? 0;
-  const collectedCount = dues?.filter((d: any) => d.status === "PAID").length ?? 0;
   const primaryColor = colorScheme === "dark" ? "#f97316" : "#b45309";
 
   return (
-    <>
-    <ScreenContainer contentContainerStyle={{ padding: 24, paddingBottom: 60 }}>
-      {/* Razorpay dynamic gateway settings card */}
-      <Card className="mb-6 gap-3">
-        <Pressable
-          onPress={() => setShowPaymentConfig(!showPaymentConfig)}
-          className="flex-row justify-between items-center"
-        >
-          <View className="flex-1 pr-4">
-            <Text className="text-foreground-light dark:text-foreground-dark text-base font-bold">
-              Razorpay API Gateway
-            </Text>
-            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs mt-0.5">
-              {paymentConfig?.razorpayKeyId ? `Active (Key ID: ${paymentConfig.razorpayKeyId})` : "Configure dynamic payment routing"}
-            </Text>
-          </View>
-          <Ionicons
-            name={showPaymentConfig ? "chevron-up-circle-outline" : "chevron-down-circle-outline"}
-            size={22}
-            color={primaryColor}
-          />
-        </Pressable>
-
-        {showPaymentConfig && (
-          <View className="gap-4 mt-2 pt-3 border-t border-border-light dark:border-border-dark">
-            <View className="gap-1.5">
-              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs font-semibold">
-                Razorpay Key ID *
-              </Text>
-              <TextInput
-                value={razorpayKeyId}
-                onChangeText={setRazorpayKeyId}
-                placeholder="rzp_live_..."
-                placeholderTextColor="#78716c"
-                className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl py-3 px-4 text-xs font-mono"
-              />
-            </View>
-
-            <View className="gap-1.5">
-              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs font-semibold">
-                Razorpay Key Secret *
-              </Text>
-              <TextInput
-                value={razorpayKeySecret}
-                onChangeText={setRazorpayKeySecret}
-                secureTextEntry={true}
-                placeholder="Enter Secret Key"
-                placeholderTextColor="#78716c"
-                className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl py-3 px-4 text-xs font-mono"
-              />
-            </View>
-
-            <Pressable
-              onPress={handleSavePaymentConfig}
-              disabled={updatePaymentConfig.isPending}
-              className="bg-primary-light dark:bg-primary-dark rounded-xl py-3.5 items-center active:opacity-90 disabled:opacity-50"
-            >
-              {updatePaymentConfig.isPending ? (
-                <ActivityIndicator size="small" color="#ffffff" />
-              ) : (
-                <Text className="text-white font-bold text-xs">Save Keys Setup</Text>
-              )}
-            </Pressable>
-          </View>
-        )}
-      </Card>
-
-      {/* 1. Header Dues Stats Panel */}
-      <View className="flex-row gap-4 mb-6">
-        <Card className="flex-1 p-4 border border-amber-500/20 bg-amber-500/5">
-          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-bold uppercase tracking-wider">
-            Pending Bills
+    <ScreenContainer
+      contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+      onRefresh={handleRefresh}
+      refreshing={refreshing}
+    >
+      {/* Header */}
+      <View className="mb-6 flex-row justify-between items-center">
+        <View className="flex-1 pr-4">
+          <Text className="text-foreground-light dark:text-foreground-dark text-xl font-bold">Dues & Billings</Text>
+          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs mt-1">
+            Generate monthly bills, setup payment gateways, and reconcile statuses
           </Text>
-          <Text className="text-foreground-light dark:text-foreground-dark text-2xl font-black mt-1">
-            {outstandingCount}
-          </Text>
-        </Card>
-        <Card className="flex-1 p-4 border border-emerald-500/20 bg-emerald-500/5">
-          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-bold uppercase tracking-wider">
-            Reconciled Dues
-          </Text>
-          <Text className="text-foreground-light dark:text-foreground-dark text-2xl font-black mt-1">
-            {collectedCount}
-          </Text>
-        </Card>
-      </View>
-
-      {/* 2. Billing Generator Section */}
-      <Card className="mb-6">
-        <Text className="text-foreground-light dark:text-foreground-dark text-lg font-bold mb-4">
-          Generate Flat Maintenance Bills
-        </Text>
-
-        <View className="gap-4">
-          <View className="flex-row gap-4">
-            <View className="flex-1">
-              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs mb-1.5 font-semibold">
-                Amount (INR) *
-              </Text>
-              <Controller
-                control={control}
-                name="amount"
-                render={({ field }) => (
-                  <TextInput
-                    value={field.value}
-                    onChangeText={field.onChange}
-                    onBlur={field.onBlur}
-                    placeholder="e.g. 2500"
-                    placeholderTextColor="#78716c"
-                    keyboardType="numeric"
-                    className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl py-3 px-4 focus:border-primary-light dark:focus:border-primary-dark"
-                  />
-                )}
-              />
-              {errors.amount && (
-                <FieldError isInvalid className="text-rose-500 text-xs mt-1">
-                  {errors.amount.message}
-                </FieldError>
-              )}
-            </View>
-
-            <View className="flex-1">
-              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs mb-1.5 font-semibold">
-                Billing Month *
-              </Text>
-              <Controller
-                control={control}
-                name="month"
-                render={({ field }) => (
-                  <Pressable
-                    onPress={() => setShowMonthModal(true)}
-                    className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl py-3.5 px-4 flex-row justify-between items-center active:opacity-90"
-                  >
-                    <Text className={field.value ? "text-foreground-light dark:text-foreground-dark font-medium" : "text-stone-500"}>
-                      {field.value || "Select Month"}
-                    </Text>
-                    <Ionicons name="calendar-outline" size={16} color="#78716c" />
-                  </Pressable>
-                )}
-              />
-              {errors.month && (
-                <FieldError isInvalid className="text-rose-500 text-xs mt-1">
-                  {errors.month.message}
-                </FieldError>
-              )}
-            </View>
-          </View>
-
-          <View>
-            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs mb-1.5 font-semibold">
-              Due Date *
-            </Text>
-            <Controller
-              control={control}
-              name="dueDate"
-              render={({ field }) => (
-                <Pressable
-                  onPress={() => {
-                    if (!selectedMonth) {
-                      showToast("Please select Billing Month first", "info");
-                      return;
-                    }
-                    setShowDateModal(true);
-                  }}
-                  className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl py-3.5 px-4 flex-row justify-between items-center active:opacity-90"
-                >
-                  <Text className={field.value ? "text-foreground-light dark:text-foreground-dark font-medium" : "text-stone-500"}>
-                    {field.value || "Select Due Date"}
-                  </Text>
-                  <Ionicons name="today-outline" size={16} color="#78716c" />
-                </Pressable>
-              )}
-            />
-            {errors.dueDate && (
-              <FieldError isInvalid className="text-rose-500 text-xs mt-1">
-                {errors.dueDate.message}
-              </FieldError>
-            )}
-          </View>
-
-          <Pressable
-            disabled={generateMutation.isPending}
-            onPress={handleSubmit(onSubmit)}
-            className="bg-amber-700 hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-500 rounded-xl py-3.5 mt-2 items-center justify-center active:opacity-90 border border-amber-800"
-          >
-            {generateMutation.isPending ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text className="text-white font-bold text-sm">Generate & Send Bills</Text>
-            )}
-          </Pressable>
         </View>
-      </Card>
+        <Ionicons name="card-outline" size={24} color={primaryColor} />
+      </View>
 
-      {/* 3. Dues logs section */}
-      <View className="flex-row items-center justify-between mb-3">
-        <Text className="text-foreground-light dark:text-foreground-dark text-lg font-bold">
-          Bills & Dues Audit Logs
-        </Text>
+      {/* Overview Cards (Actions block) */}
+      <View className="flex-row gap-3 mb-6">
         <Pressable
-          onPress={() => setShowExportFilterModal(true)}
-          className="flex-row items-center gap-1.5 bg-amber-500/10 border border-amber-500/30 py-2 px-3 rounded-xl active:opacity-70"
+          onPress={() => setShowGenerateModal(true)}
+          className="flex-1 active:opacity-90"
+          accessibilityRole="button"
+          accessibilityLabel="Generate new billing dues"
         >
-          {isExporting ? (
-            <ActivityIndicator size="small" color="#f59e0b" />
-          ) : (
-            <Ionicons name="download-outline" size={14} color="#f59e0b" />
-          )}
-          <Text className="text-amber-600 dark:text-amber-500 text-xs font-bold">Export</Text>
+          <Card className="items-center py-4 bg-primary-light/10 dark:bg-primary-dark/10 border-primary-light/20">
+            <Ionicons name="add-circle-outline" size={22} color={primaryColor} />
+            <Text className="text-foreground-light dark:text-foreground-dark font-bold text-xs mt-1 text-center">
+              Generate Dues
+            </Text>
+          </Card>
+        </Pressable>
+
+        <Pressable
+          onPress={() => setShowPaymentConfig(true)}
+          className="flex-1 active:opacity-90"
+          accessibilityRole="button"
+          accessibilityLabel="Configure payment gateway keys"
+        >
+          <Card className="items-center py-4 bg-muted-light/10 dark:bg-muted-dark/10 border-border-light dark:border-border-dark">
+            <Ionicons name="settings-outline" size={22} color="#78716c" />
+            <Text className="text-foreground-light dark:text-foreground-dark font-bold text-xs mt-1 text-center">
+              Payment Gateway
+            </Text>
+          </Card>
+        </Pressable>
+
+        <Pressable
+          onPress={() => setShowExportModal(true)}
+          className="flex-1 active:opacity-90"
+          accessibilityRole="button"
+          accessibilityLabel="Export dues invoices report"
+        >
+          <Card className="items-center py-4 bg-muted-light/10 dark:bg-muted-dark/10 border-border-light dark:border-border-dark">
+            <Ionicons name="download-outline" size={22} color="#78716c" />
+            <Text className="text-foreground-light dark:text-foreground-dark font-bold text-xs mt-1 text-center">
+              Export Registry
+            </Text>
+          </Card>
         </Pressable>
       </View>
 
-      <ScrollView className="flex-1">
-        {!dues || dues.length === 0 ? (
-          <Card className="p-8 items-center border border-dashed">
-            <Ionicons name="receipt-outline" size={32} color="#71717a" style={{ marginBottom: 12 }} />
-            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs text-center">
-              No bills generated. Use the panel above to dispatch society maintenance charges.
+      {/* Dues History list */}
+      <View className="gap-4">
+        <SectionHeader title="Dues History Registry Log" />
+        
+        {dues.length === 0 ? (
+          <Card className="items-center py-10">
+            <Ionicons name="receipt-outline" size={36} color="#78716c" />
+            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs mt-3">
+              No bills generated yet
+            </Text>
+            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs mt-0.5 text-center">
+              Tap "Generate Dues" at the top to roll out bills to flats
             </Text>
           </Card>
         ) : (
-          dues.map((due: any) => (
-            <Card key={due.id} className="mb-3.5 p-4.5">
-              <View className="flex-row justify-between items-start">
-                <View className="flex-1">
-                  <Text className="text-foreground-light dark:text-foreground-dark font-bold text-sm">
-                    {due.month} Bill
-                  </Text>
-                  <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs font-semibold mt-1">
-                    Flat {due.flat.tower.name} - {due.flat.number}
-                  </Text>
-                  <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs mt-0.5">
-                    Resident: {due.flat.residents.map((r: any) => r.name).join(", ") || "No active resident"}
-                  </Text>
-                  {due.status === "PENDING" ? (
-                    <Text className="text-amber-600 dark:text-amber-500 text-xxs font-semibold mt-0.5">
-                      Due by: {new Date(due.dueDate).toLocaleDateString()}
-                    </Text>
-                  ) : (
-                    <Text className="text-emerald-600 dark:text-emerald-500 text-xxs font-semibold mt-0.5">
-                      Paid: {new Date(due.paidAt).toLocaleDateString()}
-                    </Text>
-                  )}
-                </View>
-                <View className="items-end">
-                  <Text className="text-foreground-light dark:text-foreground-dark font-black text-base">
-                    ₹{due.amount.toLocaleString()}
-                  </Text>
-                  <Chip
-                    size="sm"
-                    variant="soft"
-                    color={due.status === "PENDING" ? "warning" : "success"}
-                    className="mt-2"
-                  >
-                    <Chip.Label>{due.status}</Chip.Label>
-                  </Chip>
-                </View>
-              </View>
-
-              {due.status === "PENDING" && (
-                <Pressable
-                  disabled={markPaidMutation.isPending}
-                  onPress={() => handleMarkPaid(due.id)}
-                  className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark py-2.5 rounded-xl mt-3.5 items-center justify-center active:opacity-80"
+          <View className="gap-3">
+            {dues.map((due: any) => {
+              const statusColor = due.status === "PAID" ? "success" : "warning";
+              const isPaid = due.status === "PAID";
+              return (
+                <Card
+                  key={due.id}
+                  className="border border-border-light dark:border-border-dark p-4 bg-muted-light/5 dark:bg-muted-dark/5"
                 >
-                  {markPaidMutation.isPending ? (
-                    <ActivityIndicator size="small" color="#b45309" />
-                  ) : (
-                    <Text className="text-amber-700 dark:text-amber-500 font-bold text-xs">
-                      Reconcile Paid Offline
-                    </Text>
-                  )}
-                </Pressable>
-              )}
+                  <View className="flex-row justify-between items-start">
+                    <View className="flex-1 pr-2">
+                      <Text className="text-foreground-light dark:text-foreground-dark font-bold text-sm">
+                        {due.user?.name || "Unassigned Resident"}
+                      </Text>
+                      <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs mt-0.5">
+                        Tower {due.flat?.tower?.name} — Flat {due.flat?.number}
+                      </Text>
+                      <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-semibold mt-1">
+                        Billing Month: {due.month}
+                      </Text>
+                      {due.dueDate && (
+                        <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs mt-0.5">
+                          Due Date: {new Date(due.dueDate).toLocaleDateString()}
+                        </Text>
+                      )}
+                    </View>
 
-              {due.status === "PAID" && (
-                <View className="bg-zinc-100 dark:bg-zinc-800/40 p-2.5 rounded-lg mt-3 border border-zinc-200/50 dark:border-zinc-800/50 flex-row justify-between items-center">
-                  <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs">
-                    Reference ID: {due.razorpayPaymentId || "OFFLINE"}
-                  </Text>
-                  <Ionicons name="checkmark-circle-outline" size={12} color="#10b981" />
-                </View>
-              )}
-            </Card>
-          ))
+                    <View className="items-end gap-1.5">
+                      <Chip
+                        color={statusColor}
+                        size="sm"
+                        accessibilityLabel={`Status: ${due.status}`}
+                      >
+                        {due.status}
+                      </Chip>
+                      <Text className="text-foreground-light dark:text-foreground-dark font-black text-sm font-mono mt-1">
+                        ₹{due.amount.toLocaleString()}
+                      </Text>
+                      
+                      {!isPaid && (
+                        <Pressable
+                          onPress={() => handleMarkPaid(due.id, due.user?.name || "Unassigned Resident", due.flat?.number)}
+                          className="bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-1 rounded-lg mt-1 active:opacity-75"
+                          accessibilityRole="button"
+                          accessibilityLabel={`Mark bill for Flat ${due.flat?.number} as Paid`}
+                        >
+                          <Text className="text-emerald-500 text-[10px] font-bold">Mark Paid</Text>
+                        </Pressable>
+                      )}
+                    </View>
+                  </View>
+                </Card>
+              );
+            })}
+          </View>
         )}
-      </ScrollView>
+      </View>
 
-      {/* 4. Billing Month Picker Modal */}
-      <Modal
-        visible={showMonthModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowMonthModal(false)}
-      >
-        <Pressable className="flex-1 bg-black/60 justify-center items-center p-6" onPress={() => setShowMonthModal(false)}>
-          <Pressable className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 w-full max-w-sm" onPress={(e) => e.stopPropagation()}>
-            <Text className="text-white text-lg font-bold mb-4">Select Billing Month</Text>
-            <ScrollView className="max-h-80">
-              <View className="gap-2">
-                {getUpcomingMonths().map((m) => (
-                  <Pressable
-                    key={m}
-                    onPress={() => {
-                      setValue("month", m, { shouldValidate: true });
-                      setValue("dueDate", ""); // Clear dueDate since month changed!
-                      setShowMonthModal(false);
-                    }}
-                    className="bg-zinc-800/40 border border-zinc-800/60 p-3.5 rounded-xl flex-row justify-between items-center active:bg-zinc-800"
-                  >
-                    <Text className="text-zinc-200 font-semibold">{m}</Text>
-                    <Ionicons name="chevron-forward" size={16} color="#71717a" />
-                  </Pressable>
-                ))}
-              </View>
-            </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      {/* Generate Dues Form Modal */}
+      <GenerateDuesModal
+        visible={showGenerateModal}
+        onClose={() => setShowGenerateModal(false)}
+        onSubmit={handleGenerateDuesSubmit}
+        isSubmitting={generateMutation.isPending}
+      />
 
-      {/* 5. Due Date Picker Modal */}
-      <Modal
-        visible={showDateModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowDateModal(false)}
-      >
-        <Pressable className="flex-1 bg-black/60 justify-center items-center p-6" onPress={() => setShowDateModal(false)}>
-          <Pressable className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 w-full max-w-sm" onPress={(e) => e.stopPropagation()}>
-            <Text className="text-white text-lg font-bold mb-1">Select Due Date</Text>
-            <Text className="text-zinc-500 text-xs mb-4">For billing period {selectedMonth}</Text>
-            
-            <ScrollView className="max-h-80">
-              <View className="flex-row flex-wrap gap-2.5 justify-center py-2">
-                {getDaysInMonth(selectedMonth).days.map((day) => {
-                  const { year, monthIndex } = getDaysInMonth(selectedMonth);
-                  const yyyy = year;
-                  const mm = String(monthIndex + 1).padStart(2, "0");
-                  const dd = String(day).padStart(2, "0");
-                  const dateStr = `${yyyy}-${mm}-${dd}`;
-                  
-                  return (
-                    <Pressable
-                      key={day}
-                      onPress={() => {
-                        setValue("dueDate", dateStr, { shouldValidate: true });
-                        setShowDateModal(false);
-                      }}
-                      className="w-10 h-10 bg-zinc-800/40 border border-zinc-800/80 rounded-lg items-center justify-center active:bg-amber-600 active:border-amber-700"
-                    >
-                      <Text className="text-zinc-200 font-bold text-xs">{day}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </ScrollView>
+      {/* Razorpay Configurations Modal */}
+      <PaymentConfigModal
+        visible={showPaymentConfig}
+        onClose={() => setShowPaymentConfig(false)}
+        onSave={handleSavePaymentConfig}
+        isSaving={updatePaymentConfig.isPending}
+        currentConfig={paymentConfig}
+      />
 
-            <Pressable 
-              onPress={() => setShowDateModal(false)}
-              className="mt-6 border border-zinc-800 py-3 rounded-xl items-center active:bg-zinc-800"
-            >
-              <Text className="text-zinc-400 font-bold text-xs">Cancel</Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      {/* PDF/CSV Exporter Modal */}
+      <ExportDuesModal
+        visible={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        onExport={handleExportSubmit}
+        isExporting={isExporting}
+        dues={dues}
+      />
     </ScreenContainer>
-
-      {/* 6. Export Modal */}
-      <Modal
-        visible={showExportFilterModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowExportFilterModal(false)}
-      >
-        <Pressable
-          className="flex-1 bg-black/60 justify-end"
-          onPress={() => setShowExportFilterModal(false)}
-        >
-          <Pressable
-            className="bg-zinc-900 border-t border-zinc-800 rounded-t-3xl p-6"
-            onPress={(e) => e.stopPropagation()}
-          >
-            <View className="flex-row items-center justify-between mb-5">
-              <Text className="text-white text-lg font-bold">Export Dues Report</Text>
-              <Pressable onPress={() => setShowExportFilterModal(false)} className="p-1">
-                <Ionicons name="close" size={20} color="#71717a" />
-              </Pressable>
-            </View>
-
-            {/* Month filter */}
-            <Text className="text-zinc-400 text-xs font-bold uppercase tracking-wider mb-2">Filter by Month</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-5">
-              <View className="flex-row gap-2 pb-1">
-                <Pressable
-                  onPress={() => setSelectedExportMonth(null)}
-                  className={`px-4 py-2 rounded-xl border ${!selectedExportMonth ? "bg-amber-600 border-amber-700" : "bg-zinc-800/40 border-zinc-800"}`}
-                >
-                  <Text className={`text-xs font-bold ${!selectedExportMonth ? "text-white" : "text-zinc-400"}`}>All Months</Text>
-                </Pressable>
-                {Array.from(new Set((dues ?? []).map((d: any) => d.month))).map((m: any) => (
-                  <Pressable
-                    key={m}
-                    onPress={() => setSelectedExportMonth(m)}
-                    className={`px-4 py-2 rounded-xl border ${selectedExportMonth === m ? "bg-amber-600 border-amber-700" : "bg-zinc-800/40 border-zinc-800"}`}
-                  >
-                    <Text className={`text-xs font-bold ${selectedExportMonth === m ? "text-white" : "text-zinc-400"}`}>{m}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            </ScrollView>
-
-            {/* Format buttons */}
-            <Text className="text-zinc-400 text-xs font-bold uppercase tracking-wider mb-3">Choose Format</Text>
-            <View className="gap-3">
-              <Pressable
-                onPress={() => handleExport("pdf")}
-                disabled={isExporting}
-                className="flex-row items-center gap-3 bg-rose-600/10 border border-rose-600/30 p-4 rounded-2xl active:opacity-70"
-              >
-                <View className="w-9 h-9 bg-rose-600/20 rounded-xl items-center justify-center">
-                  <Ionicons name="document-text-outline" size={18} color="#ef4444" />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-white font-bold text-sm">PDF Report</Text>
-                  <Text className="text-zinc-500 text-xs">Print-ready with summary table</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color="#71717a" />
-              </Pressable>
-
-              <Pressable
-                onPress={() => handleExport("csv")}
-                disabled={isExporting}
-                className="flex-row items-center gap-3 bg-sky-600/10 border border-sky-600/30 p-4 rounded-2xl active:opacity-70"
-              >
-                <View className="w-9 h-9 bg-sky-600/20 rounded-xl items-center justify-center">
-                  <Ionicons name="code-slash-outline" size={18} color="#38bdf8" />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-white font-bold text-sm">CSV File</Text>
-                  <Text className="text-zinc-500 text-xs">Raw data, universally compatible</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color="#71717a" />
-              </Pressable>
-            </View>
-
-            <View className="h-6" />
-          </Pressable>
-        </Pressable>
-      </Modal>
-    </>
   );
 }
+
 export default AdminDuesView;

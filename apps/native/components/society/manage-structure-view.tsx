@@ -6,6 +6,7 @@ import { useToastStore } from "../../store/useToastStore";
 import { ScreenContainer } from "../ui/screen-container";
 import { Card } from "../ui/card";
 import { Loader } from "../ui/loader";
+import { FlatInputChips } from "../ui/flat-input-chips";
 
 interface TowerInput {
   name: string;
@@ -19,7 +20,7 @@ export function ManageStructureView() {
 
   const [towers, setTowers] = useState<TowerInput[]>([]);
   const [newTowerName, setNewTowerName] = useState("");
-  const [newFlatsString, setNewFlatsString] = useState("");
+  const [newFlats, setNewFlats] = useState<string[]>([]);
 
   // Sync existing towers when query loads
   useEffect(() => {
@@ -43,15 +44,10 @@ export function ManageStructureView() {
       return;
     }
 
-    const flatsArray = newFlatsString
-      .split(",")
-      .map((f) => f.trim())
-      .filter((f) => f.length > 0);
-
-    setTowers((prev) => [...prev, { name: newTowerName.trim(), flats: flatsArray }]);
+    setTowers((prev) => [...prev, { name: newTowerName.trim(), flats: newFlats }]);
     setNewTowerName("");
-    setNewFlatsString("");
-    showToast("Tower added to temporary configuration list!", "success");
+    setNewFlats([]);
+    showToast("Tower added to configuration list!", "success");
   };
 
   const handleAddFlatToTower = (towerIdx: number, flatNum: string) => {
@@ -103,46 +99,46 @@ export function ManageStructureView() {
 
   return (
     <ScreenContainer scrollable={false} className="p-5">
-      <ScrollView className="flex-grow" contentContainerStyle={{ paddingBottom: 120, gap: 20 }}>
-        <Text className="text-xl font-bold text-zinc-900 dark:text-white mt-2">
+      <ScrollView className="flex-grow" contentContainerStyle={{ paddingBottom: 140, gap: 20 }}>
+        <Text className="text-xl font-bold text-foreground-light dark:text-foreground-dark mt-2">
           Manage Society Structure
         </Text>
-        <Text className="text-xs text-zinc-500 dark:text-zinc-400 -mt-2">
+        <Text className="text-xs text-muted-foreground-light dark:text-muted-foreground-dark -mt-2">
           Add new towers or flats to expand the society layout database.
         </Text>
 
-        {/* ── ADD NEW TOWER CARD ── */}
-        <Card>
-          <Text className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
+        {/* Add New Tower Card */}
+        <Card className="gap-4">
+          <Text className="text-sm font-semibold text-muted-foreground-light dark:text-muted-foreground-dark uppercase tracking-wider">
             Add New Tower
           </Text>
 
           <View className="gap-4">
             <View className="gap-1.5">
-              <Text className="text-zinc-600 dark:text-zinc-400 text-xs">Tower Name</Text>
+              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs font-semibold">Tower Name</Text>
               <TextInput
                 value={newTowerName}
                 onChangeText={setNewTowerName}
-                className="bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-white text-sm px-4 py-3 rounded-xl focus:border-amber-500"
+                className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark text-sm px-4 py-3 rounded-xl focus:border-amber-500"
                 placeholder="e.g. Tower C"
-                placeholderTextColor="#71717a"
+                placeholderTextColor="#78716c"
               />
             </View>
 
             <View className="gap-1.5">
-              <Text className="text-zinc-600 dark:text-zinc-400 text-xs">Flats (comma separated list)</Text>
-              <TextInput
-                value={newFlatsString}
-                onChangeText={setNewFlatsString}
-                className="bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-white text-sm px-4 py-3 rounded-xl focus:border-amber-500"
-                placeholder="e.g. 101, 102, 103"
-                placeholderTextColor="#71717a"
+              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs font-semibold">Flats List</Text>
+              <FlatInputChips
+                value={newFlats}
+                onChange={setNewFlats}
+                placeholder="Type flat number and press enter/comma"
               />
             </View>
 
             <Pressable
               onPress={handleAddTower}
-              className="bg-amber-600 active:bg-amber-700 py-3 rounded-xl items-center mt-2 flex-row justify-center gap-2"
+              className="bg-primary-light dark:bg-primary-dark py-3.5 rounded-xl items-center mt-2 flex-row justify-center gap-2 active:opacity-90"
+              accessibilityRole="button"
+              accessibilityLabel="Add tower configuration"
             >
               <Ionicons name="add-circle-outline" size={16} color="#ffffff" />
               <Text className="text-white text-xs font-bold">Add Tower to Config</Text>
@@ -150,42 +146,42 @@ export function ManageStructureView() {
           </View>
         </Card>
 
-        {/* ── CONFIGURATION PREVIEW ── */}
-        <Text className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mt-4">
+        {/* Configuration Preview */}
+        <Text className="text-sm font-semibold text-muted-foreground-light dark:text-muted-foreground-dark uppercase tracking-wider mt-4">
           Towers Configuration Preview
         </Text>
 
         {towers.length === 0 ? (
-          <Text className="text-zinc-500 text-sm italic">No towers configured yet.</Text>
+          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-sm italic">No towers configured yet.</Text>
         ) : (
           towers.map((tower, tIdx) => {
             return (
-              <Card key={tower.name}>
-                <View className="flex-row justify-between items-center mb-3">
-                  <Text className="text-base font-bold text-zinc-900 dark:text-white">
+              <Card key={tower.name} className="gap-3">
+                <View className="flex-row justify-between items-center mb-1">
+                  <Text className="text-base font-bold text-foreground-light dark:text-foreground-dark">
                     {tower.name}
                   </Text>
-                  <Text className="text-xxs bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-2 py-1 rounded-md">
+                  <Text className="text-xxs bg-muted-light dark:bg-muted-dark text-muted-foreground-light dark:text-muted-foreground-dark px-2.5 py-1 rounded-md border border-border-light/40 dark:border-border-dark/40 font-bold">
                     {tower.flats.length} Flats
                   </Text>
                 </View>
 
                 {/* Flat chips list */}
-                <View className="flex-row flex-wrap gap-2 mb-4">
+                <View className="flex-row flex-wrap gap-2">
                   {tower.flats.map((flat) => (
                     <View
                       key={flat}
-                      className="bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 rounded-lg flex-row items-center gap-1.5"
+                      className="bg-primary-light/10 dark:bg-primary-dark/10 border border-primary-light/20 dark:border-primary-dark/20 px-2.5 py-1 rounded-lg flex-row items-center gap-1.5"
                     >
-                      <Text className="text-xs text-zinc-900 dark:text-white">{flat}</Text>
-                      <Pressable onPress={() => handleRemoveFlat(tIdx, flat)}>
-                        <Ionicons name="close-circle" size={14} color="#f43f5e" />
+                      <Text className="text-xs text-primary-light dark:text-primary-dark font-extrabold font-mono">{flat}</Text>
+                      <Pressable onPress={() => handleRemoveFlat(tIdx, flat)} accessibilityRole="button" accessibilityLabel={`Remove flat ${flat} from ${tower.name}`}>
+                        <Ionicons name="close" size={12} color="#f43f5e" />
                       </Pressable>
                     </View>
                   ))}
                 </View>
 
-                {/* Add Flat inline form */}
+                {/* Add Flat inline row */}
                 <FlatAdderRow
                   onAddFlat={(flatNum) => handleAddFlatToTower(tIdx, flatNum)}
                 />
@@ -195,7 +191,7 @@ export function ManageStructureView() {
         )}
       </ScrollView>
 
-      {/* ── PERSIST CHANGES FOOTER ── */}
+      {/* Save Changes Footer */}
       <View
         style={{
           position: "absolute",
@@ -205,12 +201,14 @@ export function ManageStructureView() {
           padding: 20,
           borderTopWidth: 1,
         }}
-        className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800"
+        className="bg-card-light dark:bg-card-dark border-border-light dark:border-border-dark"
       >
         <Pressable
           onPress={handleSaveModification}
           disabled={setupMutation.isPending}
-          className="bg-emerald-600 active:bg-emerald-700 disabled:opacity-50 py-4 rounded-xl items-center flex-row justify-center gap-2"
+          className="bg-emerald-600 active:opacity-90 disabled:opacity-50 py-4 rounded-xl items-center flex-row justify-center gap-2"
+          accessibilityRole="button"
+          accessibilityLabel="Save society structure modifications"
         >
           {setupMutation.isPending ? (
             <ActivityIndicator size="small" color="#ffffff" />
@@ -226,17 +224,17 @@ export function ManageStructureView() {
   );
 }
 
-// Inline component to keep local state isolates per tower list row
+// Inline component to keep local state isolated per tower list row
 function FlatAdderRow({ onAddFlat }: { onAddFlat: (flatNum: string) => void }) {
   const [flatNum, setFlatNum] = useState("");
   return (
-    <View className="flex-row gap-2 mt-2">
+    <View className="flex-row gap-2 mt-2 pt-2 border-t border-border-light/40 dark:border-border-dark/40">
       <TextInput
         value={flatNum}
         onChangeText={setFlatNum}
         placeholder="New Flat Num (e.g. 505)"
-        placeholderTextColor="#71717a"
-        className="flex-1 bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-white text-xs px-3 py-2 rounded-lg"
+        placeholderTextColor="#78716c"
+        className="flex-1 bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark text-xs px-3 py-2 rounded-lg font-semibold"
         keyboardType="numeric"
       />
       <Pressable
@@ -246,9 +244,11 @@ function FlatAdderRow({ onAddFlat }: { onAddFlat: (flatNum: string) => void }) {
             setFlatNum("");
           }
         }}
-        className="bg-zinc-900 dark:bg-zinc-100 active:opacity-75 px-4 rounded-lg items-center justify-center"
+        className="bg-primary-light dark:bg-primary-dark active:opacity-75 px-4 rounded-lg items-center justify-center"
+        accessibilityRole="button"
+        accessibilityLabel="Add flat to tower"
       >
-        <Text className="text-xs text-white dark:text-zinc-900 font-semibold">Add Flat</Text>
+        <Text className="text-xs text-white font-bold">Add Flat</Text>
       </Pressable>
     </View>
   );

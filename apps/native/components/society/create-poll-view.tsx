@@ -1,49 +1,25 @@
 import React, { useState } from "react";
-import { Text, View, Pressable, TextInput, ActivityIndicator, useColorScheme, ScrollView } from "react-native";
+import { Text, View, Pressable, useColorScheme } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Controller, useFieldArray, useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useCreatePollMutation, useClosePollMutation } from "../../queries/admin";
 import { usePollsQuery } from "../../queries/common";
 import { useToastStore } from "../../store/useToastStore";
 import { ScreenContainer } from "../ui/screen-container";
-import { Card } from "../ui/card";
-import { createPollSchema, type CreatePollFormData } from "@/lib/form-schemas";
-import { FieldError } from "heroui-native";
+import { Card, CardTitle, CardDescription } from "../ui/card";
 import { Loader } from "../ui/loader";
+import { PollForm } from "./polls/poll-form";
+import { type CreatePollFormData } from "@/lib/form-schemas";
 
 export function CreatePollView() {
   const [activeTab, setActiveTab] = useState<"create" | "manage">("create");
   const pollMutation = useCreatePollMutation();
   const closeMutation = useClosePollMutation();
-  const { data: polls = [], isLoading: pollsLoading } = usePollsQuery();
+  const { data: polls = [], isLoading: pollsLoading, refetch: refetchPolls } = usePollsQuery();
   const { showToast } = useToastStore();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  const { control, handleSubmit, reset, formState: { errors } } = useForm<CreatePollFormData>({
-    resolver: zodResolver(createPollSchema),
-    mode: "onTouched",
-    defaultValues: {
-      question: "",
-      options: [{ value: "Yes" }, { value: "No" }],
-    },
-  });
-
-  const { fields: optionFields, append, remove } = useFieldArray({
-    control,
-    name: "options",
-  });
-
-  const handleAddOption = () => {
-    if (optionFields.length >= 5) {
-      showToast("A maximum of 5 options are allowed.", "error");
-      return;
-    }
-    append({ value: "" });
-  };
-
-  const onSubmit = async (data: CreatePollFormData) => {
+  const handleLaunchSubmit = async (data: CreatePollFormData) => {
     const cleanOptions = data.options
       .map((opt) => opt.value.trim())
       .filter((opt) => opt !== "");
@@ -56,8 +32,8 @@ export function CreatePollView() {
     try {
       await pollMutation.mutateAsync({ question: data.question, options: cleanOptions });
       showToast("Community poll created successfully!", "success");
-      reset({ question: "", options: [{ value: "Yes" }, { value: "No" }] });
       setActiveTab("manage");
+      refetchPolls();
     } catch (err: any) {
       showToast(err.message || "Failed to create poll", "error");
     }
@@ -67,14 +43,17 @@ export function CreatePollView() {
     try {
       await closeMutation.mutateAsync(pollId);
       showToast("Poll closed successfully!", "success");
+      refetchPolls();
     } catch (err: any) {
       showToast(err.message || "Failed to close poll", "error");
     }
   };
 
+  const primaryColor = isDark ? "#f97316" : "#b45309";
+
   return (
     <ScreenContainer contentContainerStyle={{ padding: 24, paddingBottom: 40 }}>
-      {/* Page Title & Back Button */}
+      {/* Page Title & Header */}
       <View className="flex-row items-center mb-6 justify-between">
         <View className="flex-1 pr-4">
           <Text className="text-foreground-light dark:text-foreground-dark text-2xl font-black">
@@ -84,7 +63,7 @@ export function CreatePollView() {
             Admin voting workspace
           </Text>
         </View>
-        <Ionicons name="bar-chart" size={24} color={isDark ? "#f97316" : "#b45309"} />
+        <Ionicons name="bar-chart" size={24} color={primaryColor} />
       </View>
 
       {/* Tabs */}
@@ -108,170 +87,84 @@ export function CreatePollView() {
       </View>
 
       {activeTab === "create" ? (
-        <Card>
-          <Text className="text-foreground-light dark:text-foreground-dark text-base font-bold mb-4">
-            Launch New Poll
-          </Text>
-
-          <View className="gap-4">
-            <View>
-              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs mb-1.5 font-semibold">
-                Question *
-              </Text>
-              <Controller
-                control={control}
-                name="question"
-                render={({ field }) => (
-                  <TextInput
-                    value={field.value}
-                    onChangeText={field.onChange}
-                    onBlur={field.onBlur}
-                    placeholder="e.g. Paint tower gates blue?"
-                    placeholderTextColor="#78716c"
-                    className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl py-3 px-4 focus:border-primary-light dark:focus:border-primary-dark text-sm"
-                  />
-                )}
-              />
-              {errors.question && (
-                <FieldError isInvalid className="text-rose-500 text-xs mt-1">
-                  {errors.question.message}
-                </FieldError>
-              )}
-            </View>
-
-            <View className="gap-2.5">
-              <View className="flex-row justify-between items-center mb-1">
-                <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs font-semibold">
-                  Poll Options
-                </Text>
-                <Pressable onPress={handleAddOption} className="active:opacity-75">
-                  <Text className="text-primary-light dark:text-primary-dark text-xs font-semibold">
-                    + Add Option
-                  </Text>
-                </Pressable>
-              </View>
-
-              {optionFields.map((field, idx) => (
-                <View key={field.id} className="flex-row gap-2 items-center">
-                  <Controller
-                    control={control}
-                    name={`options.${idx}.value`}
-                    render={({ field: inputField }) => (
-                      <TextInput
-                        value={inputField.value}
-                        onChangeText={inputField.onChange}
-                        onBlur={inputField.onBlur}
-                        placeholder={`Option ${idx + 1}`}
-                        placeholderTextColor="#78716c"
-                        className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl py-2.5 px-4 focus:border-primary-light dark:focus:border-primary-dark flex-1 text-sm"
-                      />
-                    )}
-                  />
-                  {optionFields.length > 2 && (
-                    <Pressable onPress={() => remove(idx)} className="p-1.5 active:opacity-75">
-                      <Ionicons name="trash-outline" size={18} color="#ef4444" />
-                    </Pressable>
-                  )}
-                </View>
-              ))}
-              {errors.options?.message && (
-                <FieldError isInvalid className="text-rose-500 text-xs mt-1">
-                  {errors.options.message}
-                </FieldError>
-              )}
-            </View>
-
-            <Pressable
-              disabled={pollMutation.isPending}
-              onPress={handleSubmit(onSubmit)}
-              className="bg-primary-light dark:bg-primary-dark rounded-xl py-3.5 mt-2 items-center justify-center active:opacity-90"
-            >
-              {pollMutation.isPending ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <Text className="text-white font-bold text-base">Launch Poll</Text>
-              )}
-            </Pressable>
-          </View>
-        </Card>
+        /* Stateful Decomposed Poll Form */
+        <PollForm
+          onSubmit={handleLaunchSubmit}
+          isSubmitting={pollMutation.isPending}
+        />
       ) : (
+        /* Manage Polls list */
         <View className="gap-3.5">
           {pollsLoading && <Loader fullscreen={false} />}
           {!pollsLoading && polls.length === 0 && (
-            <Card className="p-6 items-center justify-center">
-              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs">
-                No community polls created yet.
+            <Card className="py-12 items-center justify-center border border-border-light dark:border-border-dark">
+              <Ionicons name="bar-chart-outline" size={32} color="#78716c" />
+              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs mt-2.5 font-medium">
+                No polls created yet.
               </Text>
             </Card>
           )}
-
-          {polls.map((poll: any) => {
-            const isClosed = poll.status === "CLOSED";
-
-            return (
-              <Card key={poll.id} className="gap-3">
-                <View className="flex-row justify-between items-center mb-0.5">
-                  <View className="bg-muted-light dark:bg-muted-dark px-2 py-0.5 rounded border border-border-light dark:border-border-dark">
-                    <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[9px] uppercase tracking-wider font-bold">
-                      {isClosed ? "Closed" : "Active"}
-                    </Text>
+          {!pollsLoading &&
+            polls.map((poll: any) => {
+              const isClosed = poll.status === "CLOSED";
+              return (
+                <Card key={poll.id} className="border border-border-light dark:border-border-dark bg-muted-light/10 dark:bg-muted-dark/5 p-4 gap-3">
+                  <View className="flex-row justify-between items-start">
+                    <View className="flex-1 pr-2">
+                      <CardTitle className="text-sm font-extrabold">{poll.question}</CardTitle>
+                      <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs">
+                        Created: {new Date(poll.createdAt).toLocaleDateString()} • {poll.totalVotes || 0} total votes
+                      </Text>
+                    </View>
+                    <View className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark px-2 py-0.5 rounded">
+                      <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[9px] uppercase font-mono font-bold">
+                        {poll.status}
+                      </Text>
+                    </View>
                   </View>
-                  <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-mono">
-                    Total: {poll.totalVotes} votes
-                  </Text>
-                </View>
 
-                <Text className="text-foreground-light dark:text-foreground-dark text-sm font-bold">
-                  {poll.question}
-                </Text>
-
-                <View className="gap-2">
-                  {poll.options.map((opt: string, idx: number) => {
-                    const votes = poll.results[idx] || 0;
-                    const pct = poll.totalVotes > 0 ? Math.round((votes / poll.totalVotes) * 100) : 0;
-
-                    return (
-                      <View
-                        key={idx}
-                        className="rounded-xl overflow-hidden border border-border-light dark:border-border-dark bg-muted-light/40 dark:bg-muted-dark/40"
-                      >
-                        {/* Percentage bar background */}
-                        <View
-                          className="absolute top-0 bottom-0 left-0 bg-primary-light/10 dark:bg-primary-dark/10"
-                          style={{ width: `${pct}%` }}
-                        />
-
-                        <View className="flex-row justify-between items-center py-2.5 px-3.5">
-                          <Text className="text-xs font-semibold text-foreground-light dark:text-foreground-dark">
-                            {opt}
-                          </Text>
-                          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-bold">
-                            {pct}% ({votes})
-                          </Text>
+                  {/* Options display with votes */}
+                  <View className="gap-2 mt-1">
+                    {poll.options.map((opt: string, index: number) => {
+                      const votes = poll.results?.[index] || 0;
+                      const percentage = poll.totalVotes > 0 ? (votes / poll.totalVotes) * 100 : 0;
+                      return (
+                        <View key={`${opt}_${index}`} className="gap-1">
+                          <View className="flex-row justify-between text-xxs font-semibold">
+                            <Text className="text-foreground-light dark:text-foreground-dark text-[11px]">{opt}</Text>
+                            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[11px]">
+                              {votes} ({percentage.toFixed(0)}%)
+                            </Text>
+                          </View>
+                          <View className="h-1.5 w-full bg-muted-light dark:bg-muted-dark rounded-full overflow-hidden">
+                            <View
+                              className="h-full bg-amber-500 rounded-full"
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </View>
                         </View>
-                      </View>
-                    );
-                  })}
-                </View>
-
-                {!isClosed && (
-                  <View className="flex-row justify-end mt-2">
-                    <Pressable
-                      onPress={() => handleClosePoll(poll.id)}
-                      disabled={closeMutation.isPending}
-                      className="bg-rose-500/10 border border-rose-500/25 px-3.5 py-1.5 rounded-lg flex-row items-center gap-1 active:opacity-75"
-                    >
-                      <Ionicons name="power" size={13} color="#f43f5e" />
-                      <Text className="text-rose-500 text-xs font-bold">End Poll</Text>
-                    </Pressable>
+                      );
+                    })}
                   </View>
-                )}
-              </Card>
-            );
-          })}
+
+                  {!isClosed && (
+                    <Pressable
+                      disabled={closeMutation.isPending}
+                      onPress={() => handleClosePoll(poll.id)}
+                      className="bg-rose-500/10 border border-rose-500/25 py-2.5 rounded-xl items-center mt-2 active:opacity-75 disabled:opacity-50"
+                      accessibilityRole="button"
+                      accessibilityLabel="Close poll voting session"
+                    >
+                      <Text className="text-rose-500 text-xs font-bold">Close Poll Session</Text>
+                    </Pressable>
+                  )}
+                </Card>
+              );
+            })}
         </View>
       )}
     </ScreenContainer>
   );
 }
+
 export default CreatePollView;

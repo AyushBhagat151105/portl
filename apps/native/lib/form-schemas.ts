@@ -72,6 +72,7 @@ export const createStaffSchema = z.object({
   role: z.string().min(1, "Staff role is required"),
   code: z.string().optional(),
   aadharNumber: z.string().optional(),
+  aadharPublicId: z.string().optional(),
   vehicleNumber: z.string().optional(),
   avatar: z.string().optional(),
 });
@@ -153,3 +154,68 @@ export const generateDuesSchema = z.object({
 });
 export type GenerateDuesFormData = z.infer<typeof generateDuesSchema>;
 
+// ── Resident Management Forms ───────────────────────────
+export const createResidentSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: z.string().min(1, "Email is required").email("Invalid email address"),
+  aadharNumber: z
+    .string()
+    .optional()
+    .refine((v) => !v || v.length === 12, "Aadhar must be exactly 12 digits"),
+  image: z.string().optional(),
+});
+
+export const updateResidentSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: z.string().min(1, "Email is required").email("Invalid email address"),
+  aadharNumber: z
+    .string()
+    .optional()
+    .refine((v) => !v || v.length === 12, "Aadhar must be exactly 12 digits"),
+  image: z.string().optional(),
+  aadharPublicId: z.string().optional().nullable(),
+});
+
+export const allocateFlatSchema = z.object({
+  occupancyStatus: z.enum(["VACANT", "OWNER_OCCUPIED", "RENTED"]),
+  ownerId: z.string().nullable(),
+  memberCount: z.string().regex(/^\d+$/, "Must be a number"),
+  vehicleMemberCount: z.string().regex(/^\d+$/, "Must be a number"),
+  residentIds: z.array(z.string()),
+});
+
+// ── Treasury Forms ──────────────────────────────────────
+export const createBudgetSchema = z.object({
+  title: z.string().min(1, "Budget title is required"),
+  allocatedAmount: z
+    .string()
+    .min(1, "Amount is required")
+    .refine((v) => !isNaN(Number(v)) && Number(v) > 0, "Amount must be a positive number"),
+});
+
+export const createExpenseSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  amount: z
+    .string()
+    .min(1, "Amount is required")
+    .refine((v) => !isNaN(Number(v)) && Number(v) > 0, "Amount must be a positive number"),
+  category: z.enum(["MAINTENANCE", "UTILITIES", "SALARIES", "FESTIVAL", "REPAIRS", "OTHERS"]),
+  description: z.string().optional(),
+  budgetId: z.string().optional(),
+});
+
+export const createFestivalSchema = z.object({
+  name: z.string().min(1, "Festival name is required"),
+  description: z.string().optional(),
+  budget: z
+    .string()
+    .min(1, "Budget amount is required")
+    .refine((v) => !isNaN(Number(v)) && Number(v) > 0, "Budget must be a positive number"),
+});
+
+export type CreateResidentFormData = z.infer<typeof createResidentSchema>;
+export type UpdateResidentFormData = z.infer<typeof updateResidentSchema>;
+export type AllocateFlatFormData = z.infer<typeof allocateFlatSchema>;
+export type CreateBudgetFormData = z.infer<typeof createBudgetSchema>;
+export type CreateExpenseFormData = z.infer<typeof createExpenseSchema>;
+export type CreateFestivalFormData = z.infer<typeof createFestivalSchema>;

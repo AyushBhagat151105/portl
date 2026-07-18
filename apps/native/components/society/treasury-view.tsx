@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { View, Text, Pressable, TextInput, ActivityIndicator, ScrollView, Modal, KeyboardAvoidingView, Platform } from "react-native";
+import React, { useState, useCallback } from "react";
+import { View, Text, Pressable, ActivityIndicator, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useColorScheme } from "react-native";
 import {
@@ -9,18 +9,29 @@ import {
   useCreateExpenseMutation,
   useFestivalsQuery,
   useCreateFestivalMutation,
+  useAdminDuesQuery,
 } from "@/queries/admin";
 import { useToastStore } from "@/store/useToastStore";
+import { useTreasuryStore } from "@/store/useTreasuryStore";
 import { ScreenContainer } from "../ui/screen-container";
-import { Card, CardTitle, CardDescription } from "../ui/card";
+import { Card } from "../ui/card";
 import { Loader } from "../ui/loader";
+import { SectionHeader } from "../ui/section-header";
 import { TreasuryCharts } from "./treasury-chart";
 import { exportTreasuryReport } from "../../lib/treasury-export";
+import { BudgetFormModal } from "./treasury/budget-form-modal";
+import { ExpenseFormModal } from "./treasury/expense-form-modal";
+import { FestivalFormModal } from "./treasury/festival-form-modal";
+import { ExportModal } from "./treasury/export-modal";
+import { type CreateBudgetFormData, type CreateExpenseFormData, type CreateFestivalFormData } from "@/lib/form-schemas";
 
 export function TreasuryView() {
   const { data: budgets = [], isLoading: budgetsLoading, refetch: refetchBudgets } = useBudgetsQuery();
   const { data: expenses = [], isLoading: expensesLoading, refetch: refetchExpenses } = useExpensesQuery();
   const { data: festivals = [], isLoading: festivalsLoading, refetch: refetchFestivals } = useFestivalsQuery();
+  const { data: duesData, isLoading: duesLoading, refetch: refetchDues } = useAdminDuesQuery();
+
+  const dues = duesData?.data || [];
 
   const createBudgetMutation = useCreateBudgetMutation();
   const createExpenseMutation = useCreateExpenseMutation();
@@ -28,55 +39,38 @@ export function TreasuryView() {
 
   const { showToast } = useToastStore();
   const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
 
-  const [activeTab, setActiveTab] = useState<"overview" | "expenses" | "festivals">("overview");
+  const { activeTab, setActiveTab, ledgerFilter, setLedgerFilter } = useTreasuryStore();
 
   // Modal States
   const [budgetModalVisible, setBudgetModalVisible] = useState(false);
   const [expenseModalVisible, setExpenseModalVisible] = useState(false);
   const [festivalModalVisible, setFestivalModalVisible] = useState(false);
-
-  // Export States
   const [showExportModal, setShowExportModal] = useState(false);
-  const [exportFormat, setExportFormat] = useState<"pdf" | "csv">("pdf");
-  const [exportScope, setExportScope] = useState<"all" | "expenses" | "budgets">("all");
-  const [exportDateRange, setExportDateRange] = useState<"all" | "month" | "year" | "custom">("all");
-  const [exportStartDate, setExportStartDate] = useState("");
-  const [exportEndDate, setExportEndDate] = useState("");
-  const [exportCategory, setExportCategory] = useState("ALL");
   const [isExporting, setIsExporting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Form Fields
-  const [budgetTitle, setBudgetTitle] = useState("");
-  const [budgetAmount, setBudgetAmount] = useState("");
-  
-  const [expenseTitle, setExpenseTitle] = useState("");
-  const [expenseAmount, setExpenseAmount] = useState("");
-  const [expenseCategory, setExpenseCategory] = useState<"MAINTENANCE" | "UTILITIES" | "SALARIES" | "FESTIVAL" | "REPAIRS" | "OTHERS">("MAINTENANCE");
-  const [expenseDescription, setExpenseDescription] = useState("");
-  const [expenseBudgetId, setExpenseBudgetId] = useState("");
-
-  const [festivalName, setFestivalName] = useState("");
-  const [festivalDesc, setFestivalDesc] = useState("");
-  const [festivalBudget, setFestivalBudget] = useState("");
-
-  const handleCreateBudget = async () => {
-    if (!budgetTitle.trim() || !budgetAmount) {
-      showToast("Please fill in all fields", "error");
-      return;
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([refetchBudgets(), refetchExpenses(), refetchFestivals(), refetchDues()]);
+    } finally {
+      setRefreshing(false);
     }
+  }, [refetchBudgets, refetchExpenses, refetchFestivals, refetchDues]);
+
+  const handleCreateBudget = async (data: CreateBudgetFormData) => {
     try {
       const now = new Date();
       const endOfYear = new Date(now.getFullYear(), 11, 31);
       await createBudgetMutation.mutateAsync({
-        title: budgetTitle.trim(),
-        allocatedAmount: parseFloat(budgetAmount),
+        title: data.title.trim(),
+        allocatedAmount: parseFloat(data.allocatedAmount),
         startDate: now.toISOString(),
         endDate: endOfYear.toISOString(),
       });
       showToast("Budget allocated successfully", "success");
-      setBudgetTitle("");
-      setBudgetAmount("");
       setBudgetModalVisible(false);
       refetchBudgets();
     } catch (err: any) {
@@ -84,25 +78,17 @@ export function TreasuryView() {
     }
   };
 
-  const handleCreateExpense = async () => {
-    if (!expenseTitle.trim() || !expenseAmount) {
-      showToast("Please fill in title and amount", "error");
-      return;
-    }
+  const handleCreateExpense = async (data: CreateExpenseFormData) => {
     try {
       await createExpenseMutation.mutateAsync({
-        title: expenseTitle.trim(),
-        amount: parseFloat(expenseAmount),
-        category: expenseCategory,
-        description: expenseDescription.trim() || undefined,
+        title: data.title.trim(),
+        amount: parseFloat(data.amount),
+        category: data.category,
+        description: data.description?.trim() || undefined,
         date: new Date().toISOString(),
-        budgetId: expenseBudgetId || undefined,
+        budgetId: data.budgetId || undefined,
       });
       showToast("Expense logged successfully", "success");
-      setExpenseTitle("");
-      setExpenseAmount("");
-      setExpenseDescription("");
-      setExpenseBudgetId("");
       setExpenseModalVisible(false);
       refetchExpenses();
       refetchBudgets();
@@ -111,22 +97,15 @@ export function TreasuryView() {
     }
   };
 
-  const handleCreateFestival = async () => {
-    if (!festivalName.trim()) {
-      showToast("Festival name is required", "error");
-      return;
-    }
+  const handleCreateFestival = async (data: CreateFestivalFormData) => {
     try {
       await createFestivalMutation.mutateAsync({
-        name: festivalName.trim(),
-        description: festivalDesc.trim() || undefined,
+        name: data.name.trim(),
+        description: data.description?.trim() || undefined,
         date: new Date().toISOString(),
-        allocatedBudget: festivalBudget ? parseFloat(festivalBudget) : undefined,
+        allocatedBudget: data.budget ? parseFloat(data.budget) : undefined,
       });
       showToast("Festival planned successfully", "success");
-      setFestivalName("");
-      setFestivalDesc("");
-      setFestivalBudget("");
       setFestivalModalVisible(false);
       refetchFestivals();
       refetchBudgets();
@@ -135,20 +114,27 @@ export function TreasuryView() {
     }
   };
 
-  const handleTriggerExport = async () => {
-    if (exportDateRange === "custom" && (!exportStartDate || !exportEndDate)) {
+  const handleTriggerExport = async (config: {
+    format: "pdf" | "csv";
+    scope: "all" | "expenses" | "budgets";
+    dateRange: "all" | "month" | "year" | "custom";
+    startDate: string;
+    endDate: string;
+    category: string;
+  }) => {
+    if (config.dateRange === "custom" && (!config.startDate || !config.endDate)) {
       showToast("Please provide both start and end dates", "error");
       return;
     }
     setIsExporting(true);
     try {
       await exportTreasuryReport(budgets, expenses, festivals, {
-        format: exportFormat,
-        scope: exportScope,
-        dateRange: exportDateRange,
-        startDate: exportStartDate || undefined,
-        endDate: exportEndDate || undefined,
-        category: exportCategory || undefined,
+        format: config.format,
+        scope: config.scope,
+        dateRange: config.dateRange,
+        startDate: config.startDate || undefined,
+        endDate: config.endDate || undefined,
+        category: config.category || undefined,
       });
       showToast("Data exported successfully! 📄", "success");
       setShowExportModal(false);
@@ -159,32 +145,74 @@ export function TreasuryView() {
     }
   };
 
-  if (budgetsLoading || expensesLoading || festivalsLoading) {
+  if (budgetsLoading || expensesLoading || festivalsLoading || duesLoading) {
     return <Loader />;
   }
 
-  // Summary Metrics
+  // Summary Metrics Calculation
   const totalBudgeted = budgets.reduce((acc: number, b: any) => acc + b.allocatedAmount, 0);
   const totalSpent = expenses.reduce((acc: number, e: any) => acc + e.amount, 0);
   const remainingFunds = totalBudgeted - totalSpent;
 
-  const primaryColor = colorScheme === "dark" ? "#f97316" : "#b45309";
-  const primaryLight = colorScheme === "dark" ? "#44403c" : "#e8e5dc";
+  // Real Balance Sheet Metrics
+  const paidDues = dues.filter((d: any) => d.status === "PAID");
+  const unpaidDues = dues.filter((d: any) => d.status !== "PAID");
+
+  const totalDuesCollected = paidDues.reduce((acc: number, d: any) => acc + d.amount, 0);
+  const totalDuesReceivable = unpaidDues.reduce((acc: number, d: any) => acc + d.amount, 0);
+
+  const retainedSurplus = totalDuesCollected - totalSpent;
+
+  // General Ledger: Chronologically merge Paid Dues (inflow) and Logged Expenses (outflow)
+  const generalLedger = [
+    ...paidDues.map((d: any) => ({
+      id: d.id,
+      date: d.paidAt || d.updatedAt || d.createdAt,
+      title: "Maintenance Collected",
+      details: `${d.flat?.tower?.name || "Tower"} - ${d.flat?.number || "Flat"} (${d.month})`,
+      type: "INFLOW" as const,
+      amount: d.amount,
+      category: "MAINTENANCE",
+    })),
+    ...expenses.map((e: any) => ({
+      id: e.id,
+      date: e.date,
+      title: e.title,
+      details: e.description || "Debit from treasury funds",
+      type: "OUTFLOW" as const,
+      amount: e.amount,
+      category: e.category,
+    })),
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const filteredTransactions = generalLedger.filter((tx) => {
+    if (ledgerFilter === "INFLOW") return tx.type === "INFLOW";
+    if (ledgerFilter === "OUTFLOW") return tx.type === "OUTFLOW";
+    return true;
+  });
+
+  const primaryColor = isDark ? "#f97316" : "#b45309";
 
   return (
-    <ScreenContainer contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+    <ScreenContainer
+      contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+      onRefresh={handleRefresh}
+      refreshing={refreshing}
+    >
       {/* Header */}
       <View className="mb-6 flex-row justify-between items-center">
         <View className="flex-1 pr-4">
           <Text className="text-foreground-light dark:text-foreground-dark text-xl font-bold">Treasury & Budgets</Text>
           <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs mt-1">
-            Track budgets, log expenditures, and manage festivals
+            Society trial balance sheets, cash inflow ledgers, and budgets
           </Text>
         </View>
         <View className="flex-row items-center gap-3">
           <Pressable
             onPress={() => setShowExportModal(true)}
             className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark px-3 py-1.5 rounded-xl active:opacity-75 flex-row items-center justify-center gap-1.5"
+            accessibilityRole="button"
+            accessibilityLabel="Export treasury report"
           >
             <Ionicons name="download-outline" size={14} color={primaryColor} />
             <Text className="text-foreground-light dark:text-foreground-dark text-xs font-bold">Export</Text>
@@ -193,78 +221,201 @@ export function TreasuryView() {
         </View>
       </View>
 
-      {/* Overview Cards */}
+      {/* Real ERP Balance Sheet Summary Cards */}
       <View className="flex-row gap-3 mb-6">
-        <Card className="flex-1 bg-amber-500/10 border border-amber-500/25 p-3.5 items-center">
-          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-bold uppercase tracking-wider">
-            Total Allocated
+        <Card className="flex-1 bg-emerald-500/10 border border-emerald-500/25 p-3.5 items-center">
+          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[9px] font-bold uppercase tracking-wider">
+            Total Income
           </Text>
-          <Text className="text-foreground-light dark:text-foreground-dark font-extrabold text-base mt-1">
-            ₹{totalBudgeted.toLocaleString()}
+          <Text className="text-emerald-600 dark:text-emerald-400 font-extrabold text-sm mt-1 font-mono">
+            ₹{totalDuesCollected.toLocaleString()}
           </Text>
         </Card>
         <Card className="flex-1 bg-rose-500/10 border border-rose-500/25 p-3.5 items-center">
-          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-bold uppercase tracking-wider">
-            Total Spent
+          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[9px] font-bold uppercase tracking-wider">
+            Total Outflow
           </Text>
-          <Text className="text-rose-500 dark:text-foreground-dark font-extrabold text-base mt-1">
+          <Text className="text-rose-500 dark:text-rose-400 font-extrabold text-sm mt-1 font-mono">
             ₹{totalSpent.toLocaleString()}
           </Text>
         </Card>
-        <Card className="flex-1 bg-emerald-500/10 border border-emerald-500/25 p-3.5 items-center">
-          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-bold uppercase tracking-wider">
-            Remaining
+        <Card className="flex-1 bg-amber-500/10 border border-amber-500/25 p-3.5 items-center">
+          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[9px] font-bold uppercase tracking-wider">
+            Net Surplus
           </Text>
-          <Text className="text-emerald-500 dark:text-foreground-dark font-extrabold text-base mt-1">
-            ₹{remainingFunds.toLocaleString()}
+          <Text className={`${retainedSurplus >= 0 ? "text-amber-600 dark:text-amber-500" : "text-rose-500"} font-extrabold text-sm mt-1 font-mono`}>
+            {retainedSurplus < 0 ? "-" : ""}₹{Math.abs(retainedSurplus).toLocaleString()}
           </Text>
         </Card>
       </View>
 
-      {/* Visual Graphs & Charts Breakdown */}
-      <TreasuryCharts budgets={budgets} expenses={expenses} />
-
       {/* Tabs */}
       <View className="flex-row bg-muted-light dark:bg-muted-dark p-1 rounded-xl mb-6">
-        <Pressable
-          onPress={() => setActiveTab("overview")}
-          className={`flex-1 py-2.5 rounded-lg items-center ${activeTab === "overview" ? "bg-card-light dark:bg-card-dark shadow-sm" : ""}`}
-        >
-          <Text className={`text-xs font-bold ${activeTab === "overview" ? "text-primary-light dark:text-primary-dark" : "text-muted-foreground-light dark:text-muted-foreground-dark"}`}>
-            Overview
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={() => setActiveTab("expenses")}
-          className={`flex-1 py-2.5 rounded-lg items-center ${activeTab === "expenses" ? "bg-card-light dark:bg-card-dark shadow-sm" : ""}`}
-        >
-          <Text className={`text-xs font-bold ${activeTab === "expenses" ? "text-primary-light dark:text-primary-dark" : "text-muted-foreground-light dark:text-muted-foreground-dark"}`}>
-            Expenses
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={() => setActiveTab("festivals")}
-          className={`flex-1 py-2.5 rounded-lg items-center ${activeTab === "festivals" ? "bg-card-light dark:bg-card-dark shadow-sm" : ""}`}
-        >
-          <Text className={`text-xs font-bold ${activeTab === "festivals" ? "text-primary-light dark:text-primary-dark" : "text-muted-foreground-light dark:text-muted-foreground-dark"}`}>
-            Festivals
-          </Text>
-        </Pressable>
+        {(["balance-sheet", "overview", "expenses", "festivals"] as const).map((tab) => {
+          const isSelected = activeTab === tab;
+          const displayNames = {
+            "balance-sheet": "Balance Sheet",
+            "overview": "Budgets Dept",
+            "expenses": "Expenses",
+            "festivals": "Festivals",
+          };
+          return (
+            <Pressable
+              key={tab}
+              onPress={() => setActiveTab(tab)}
+              className={`flex-1 py-2.5 px-3 rounded-lg items-center ${isSelected ? "bg-card-light dark:bg-card-dark shadow-sm" : ""}`}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isSelected }}
+            >
+              <Text className={`text-xs font-extrabold ${isSelected ? "text-primary-light dark:text-primary-dark" : "text-muted-foreground-light dark:text-muted-foreground-dark"}`}>
+                {displayNames[tab]}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
 
-      {/* Tab Panels */}
+      {/* Tab Panel 1: Balance Sheet Statement & General Ledger */}
+      {activeTab === "balance-sheet" && (
+        <View className="gap-6">
+          {/* Balance Sheet Statement */}
+          <Card className="border border-border-light dark:border-border-dark p-5 bg-card-light dark:bg-card-dark gap-4">
+            <Text className="text-foreground-light dark:text-white font-extrabold text-sm uppercase tracking-wider border-b border-border-light/60 dark:border-border-dark/60 pb-2">
+              Statement of Financial Position
+            </Text>
+
+            {/* Inflows/Assets */}
+            <View className="gap-2.5">
+              <Text className="text-muted-foreground-light dark:text-zinc-400 text-xxs font-bold uppercase tracking-wider">
+                Sources of Funds (Cash Inflow)
+              </Text>
+              <View className="flex-row justify-between text-xs font-semibold">
+                <Text className="text-foreground-light dark:text-zinc-300">Maintenance Collections</Text>
+                <Text className="text-foreground-light dark:text-white font-mono">₹{totalDuesCollected.toLocaleString()}</Text>
+              </View>
+              <View className="flex-row justify-between text-xs font-semibold">
+                <Text className="text-foreground-light dark:text-zinc-300">Outstanding Receivables (Unpaid)</Text>
+                <Text className="text-muted-foreground-light dark:text-zinc-500 font-mono">₹{totalDuesReceivable.toLocaleString()}</Text>
+              </View>
+            </View>
+
+            {/* Outflows/Liabilities */}
+            <View className="gap-2.5 border-t border-border-light/40 dark:border-border-dark/40 pt-3">
+              <Text className="text-muted-foreground-light dark:text-zinc-400 text-xxs font-bold uppercase tracking-wider">
+                Application of Funds (Cash Outflow)
+              </Text>
+              <View className="flex-row justify-between text-xs font-semibold">
+                <Text className="text-foreground-light dark:text-zinc-300">Logged Departmental Expenses</Text>
+                <Text className="text-rose-500 font-mono">₹{totalSpent.toLocaleString()}</Text>
+              </View>
+              <View className="flex-row justify-between text-xs font-semibold">
+                <Text className="text-foreground-light dark:text-zinc-300">Earmarked Dept Budgets (Allocated)</Text>
+                <Text className="text-foreground-light dark:text-white font-mono">₹{totalBudgeted.toLocaleString()}</Text>
+              </View>
+              <View className="flex-row justify-between text-xs font-semibold">
+                <Text className="text-foreground-light dark:text-zinc-300">Budget Overrun / Variance</Text>
+                <Text className={`${remainingFunds >= 0 ? "text-emerald-500" : "text-rose-500"} font-mono`}>
+                  {remainingFunds >= 0 ? "+" : ""}₹{remainingFunds.toLocaleString()}
+                </Text>
+              </View>
+            </View>
+
+            {/* Total Balance */}
+            <View className="flex-row justify-between border-t border-border-light/60 dark:border-border-dark/60 pt-3.5 mt-1 font-bold">
+              <Text className="text-foreground-light dark:text-white text-xs font-extrabold uppercase tracking-wider">
+                Net Retained Reserves
+              </Text>
+              <Text className={`${retainedSurplus >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500"} text-sm font-black font-mono`}>
+                {retainedSurplus < 0 ? "-" : ""}₹{Math.abs(retainedSurplus).toLocaleString()}
+              </Text>
+            </View>
+          </Card>
+
+          {/* General Ledger Transactions Feed */}
+          <View className="gap-4">
+            <View className="flex-row justify-between items-center">
+              <SectionHeader title="Chronological General Ledger" />
+              {/* Type Switcher Chips */}
+              <View className="flex-row bg-muted-light dark:bg-muted-dark p-1 rounded-lg border border-border-light/50 dark:border-border-dark/50 gap-1">
+                {(["ALL", "INFLOW", "OUTFLOW"] as const).map((filter) => {
+                  const isActive = ledgerFilter === filter;
+                  const filterLabels = { ALL: "All", INFLOW: "Dr", OUTFLOW: "Cr" };
+                  return (
+                    <Pressable
+                      key={filter}
+                      onPress={() => setLedgerFilter(filter)}
+                      className={`px-2 py-1 rounded ${isActive ? "bg-card-light dark:bg-card-dark" : ""}`}
+                      accessibilityRole="button"
+                    >
+                      <Text className={`text-[10px] font-bold ${isActive ? "text-primary-light dark:text-primary-dark" : "text-muted-foreground-light dark:text-muted-foreground-dark"}`}>
+                        {filterLabels[filter]}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+
+            {filteredTransactions.length === 0 ? (
+              <Card className="items-center py-10">
+                <Ionicons name="receipt-outline" size={32} color="#78716c" />
+                <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs mt-3">No ledger records match filters</Text>
+              </Card>
+            ) : (
+              filteredTransactions.map((tx: any) => {
+                const isInflow = tx.type === "INFLOW";
+                return (
+                  <Card key={tx.id} className="flex-row items-center gap-3 bg-card-light dark:bg-card-dark border border-border-light/40 dark:border-border-dark/40 py-3.5">
+                    <View className={`w-8 h-8 rounded-full items-center justify-center ${isInflow ? "bg-emerald-500/10" : "bg-rose-500/10"}`}>
+                      <Ionicons
+                        name={isInflow ? "arrow-down-outline" : "arrow-up-outline"}
+                        size={15}
+                        color={isInflow ? "#10b981" : "#ef4444"}
+                      />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-foreground-light dark:text-foreground-dark font-extrabold text-xs">
+                        {tx.title}
+                      </Text>
+                      <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[10px] font-semibold mt-0.5" numberOfLines={1}>
+                        {tx.details}
+                      </Text>
+                    </View>
+                    <View className="items-end gap-1">
+                      <Text className={`${isInflow ? "text-emerald-500 font-extrabold" : "text-rose-500 font-bold"} text-xs font-mono`}>
+                        {isInflow ? "+" : "-"}₹{tx.amount.toLocaleString()}
+                      </Text>
+                      <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[8px] font-medium uppercase font-mono">
+                        {new Date(tx.date).toLocaleDateString([], { month: "short", day: "numeric" })}
+                      </Text>
+                    </View>
+                  </Card>
+                );
+              })
+            )}
+          </View>
+        </View>
+      )}
+
+      {/* Tab Panel 2: Budgets Breakdown (Visual Charts & Lists) */}
       {activeTab === "overview" && (
         <View className="gap-5">
-          <View className="flex-row justify-between items-center">
-            <Text className="text-foreground-light dark:text-foreground-dark font-bold text-sm">Active Budgets</Text>
-            <Pressable
-              onPress={() => setBudgetModalVisible(true)}
-              className="bg-primary-light/10 dark:bg-primary-dark/10 px-3 py-1.5 rounded-lg flex-row items-center gap-1 active:opacity-75"
-            >
-              <Ionicons name="add" size={14} color={primaryColor} />
-              <Text className="text-primary-light dark:text-primary-dark text-xs font-bold">New Budget</Text>
-            </Pressable>
-          </View>
+          <TreasuryCharts budgets={budgets} expenses={expenses} />
+
+          <SectionHeader
+            title="Active Budgets"
+            rightElement={
+              <Pressable
+                onPress={() => setBudgetModalVisible(true)}
+                className="bg-primary-light/10 dark:bg-primary-dark/10 px-3 py-1.5 rounded-lg flex-row items-center gap-1 active:opacity-75"
+                accessibilityRole="button"
+                accessibilityLabel="Create new budget"
+              >
+                <Ionicons name="add" size={14} color={primaryColor} />
+                <Text className="text-primary-light dark:text-primary-dark text-xs font-bold">New Budget</Text>
+              </Pressable>
+            }
+          />
 
           {budgets.length === 0 ? (
             <Card className="items-center py-10">
@@ -314,18 +465,23 @@ export function TreasuryView() {
         </View>
       )}
 
+      {/* Tab Panel 3: Expenses list */}
       {activeTab === "expenses" && (
         <View className="gap-5">
-          <View className="flex-row justify-between items-center">
-            <Text className="text-foreground-light dark:text-foreground-dark font-bold text-sm">Expenses Log</Text>
-            <Pressable
-              onPress={() => setExpenseModalVisible(true)}
-              className="bg-primary-light/10 dark:bg-primary-dark/10 px-3 py-1.5 rounded-lg flex-row items-center gap-1 active:opacity-75"
-            >
-              <Ionicons name="add" size={14} color={primaryColor} />
-              <Text className="text-primary-light dark:text-primary-dark text-xs font-bold">Log Expense</Text>
-            </Pressable>
-          </View>
+          <SectionHeader
+            title="Expenses Log"
+            rightElement={
+              <Pressable
+                onPress={() => setExpenseModalVisible(true)}
+                className="bg-primary-light/10 dark:bg-primary-dark/10 px-3 py-1.5 rounded-lg flex-row items-center gap-1 active:opacity-75"
+                accessibilityRole="button"
+                accessibilityLabel="Log new expense"
+              >
+                <Ionicons name="add" size={14} color={primaryColor} />
+                <Text className="text-primary-light dark:text-primary-dark text-xs font-bold">Log Expense</Text>
+              </Pressable>
+            }
+          />
 
           {expenses.length === 0 ? (
             <Card className="items-center py-10">
@@ -370,18 +526,23 @@ export function TreasuryView() {
         </View>
       )}
 
+      {/* Tab Panel 4: Festivals list */}
       {activeTab === "festivals" && (
         <View className="gap-5">
-          <View className="flex-row justify-between items-center">
-            <Text className="text-foreground-light dark:text-foreground-dark font-bold text-sm">Festival Plans</Text>
-            <Pressable
-              onPress={() => setFestivalModalVisible(true)}
-              className="bg-primary-light/10 dark:bg-primary-dark/10 px-3 py-1.5 rounded-lg flex-row items-center gap-1 active:opacity-75"
-            >
-              <Ionicons name="add" size={14} color={primaryColor} />
-              <Text className="text-primary-light dark:text-primary-dark text-xs font-bold">Plan Festival</Text>
-            </Pressable>
-          </View>
+          <SectionHeader
+            title="Festival Plans"
+            rightElement={
+              <Pressable
+                onPress={() => setFestivalModalVisible(true)}
+                className="bg-primary-light/10 dark:bg-primary-dark/10 px-3 py-1.5 rounded-lg flex-row items-center gap-1 active:opacity-75"
+                accessibilityRole="button"
+                accessibilityLabel="Plan new festival"
+              >
+                <Ionicons name="add" size={14} color={primaryColor} />
+                <Text className="text-primary-light dark:text-primary-dark text-xs font-bold">Plan Festival</Text>
+              </Pressable>
+            }
+          />
 
           {festivals.length === 0 ? (
             <Card className="items-center py-10">
@@ -427,418 +588,37 @@ export function TreasuryView() {
         </View>
       )}
 
-      {/* BUDGET MODAL */}
-      <Modal visible={budgetModalVisible} transparent animationType="fade">
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          className="flex-1 justify-center items-center bg-black/60 px-4"
-        >
-          <View className="bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-3xl p-5 w-full max-w-[340px] gap-4">
-            <View className="flex-row justify-between items-center">
-              <Text className="text-foreground-light dark:text-foreground-dark font-bold text-sm">Allocate Budget</Text>
-              <Pressable onPress={() => setBudgetModalVisible(false)}>
-                <Ionicons name="close" size={20} color="#78716c" />
-              </Pressable>
-            </View>
+      {/* Form Modals */}
+      <BudgetFormModal
+        visible={budgetModalVisible}
+        onClose={() => setBudgetModalVisible(false)}
+        onSubmit={handleCreateBudget}
+        isSubmitting={createBudgetMutation.isPending}
+      />
 
-            <View className="gap-1.5">
-              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-semibold uppercase tracking-wider">
-                Budget Title
-              </Text>
-              <TextInput
-                value={budgetTitle}
-                onChangeText={setBudgetTitle}
-                placeholder="e.g. Festival Season 2026"
-                placeholderTextColor="#78716c"
-                className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl px-3.5 py-2.5 text-xs"
-              />
-            </View>
+      <ExpenseFormModal
+        visible={expenseModalVisible}
+        onClose={() => setExpenseModalVisible(false)}
+        onSubmit={handleCreateExpense}
+        isSubmitting={createExpenseMutation.isPending}
+        budgets={budgets}
+      />
 
-            <View className="gap-1.5">
-              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-semibold uppercase tracking-wider">
-                Allocated Amount (INR)
-              </Text>
-              <TextInput
-                value={budgetAmount}
-                onChangeText={setBudgetAmount}
-                keyboardType="numeric"
-                placeholder="e.g. 50000"
-                placeholderTextColor="#78716c"
-                className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl px-3.5 py-2.5 text-xs font-mono"
-              />
-            </View>
+      <FestivalFormModal
+        visible={festivalModalVisible}
+        onClose={() => setFestivalModalVisible(false)}
+        onSubmit={handleCreateFestival}
+        isSubmitting={createFestivalMutation.isPending}
+      />
 
-            <Pressable
-              onPress={handleCreateBudget}
-              disabled={createBudgetMutation.isPending}
-              className="bg-primary-light dark:bg-primary-dark active:opacity-90 disabled:opacity-50 py-3 rounded-xl items-center"
-            >
-              {createBudgetMutation.isPending ? (
-                <ActivityIndicator size="small" color="#ffffff" />
-              ) : (
-                <Text className="text-white font-bold text-xs">Save Budget</Text>
-              )}
-            </Pressable>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* EXPENSE MODAL */}
-      <Modal visible={expenseModalVisible} transparent animationType="fade">
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          className="flex-1 justify-center items-center bg-black/60 px-4"
-        >
-          <View className="bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-3xl p-5 w-full max-w-[340px] gap-4">
-            <View className="flex-row justify-between items-center">
-              <Text className="text-foreground-light dark:text-foreground-dark font-bold text-sm">Log Expense</Text>
-              <Pressable onPress={() => setExpenseModalVisible(false)}>
-                <Ionicons name="close" size={20} color="#78716c" />
-              </Pressable>
-            </View>
-
-            <ScrollView className="max-h-[360px] gap-4">
-              <View className="gap-1.5">
-                <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-semibold uppercase tracking-wider">
-                  Expense Title
-                </Text>
-                <TextInput
-                  value={expenseTitle}
-                  onChangeText={setExpenseTitle}
-                  placeholder="e.g. Electric Bill July"
-                  placeholderTextColor="#78716c"
-                  className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl px-3.5 py-2.5 text-xs"
-                />
-              </View>
-
-              <View className="gap-1.5 mt-3">
-                <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-semibold uppercase tracking-wider">
-                  Amount (INR)
-                </Text>
-                <TextInput
-                  value={expenseAmount}
-                  onChangeText={setExpenseAmount}
-                  keyboardType="numeric"
-                  placeholder="e.g. 1500"
-                  placeholderTextColor="#78716c"
-                  className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl px-3.5 py-2.5 text-xs font-mono"
-                />
-              </View>
-
-              {/* Category selector */}
-              <View className="gap-1.5 mt-3">
-                <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-semibold uppercase tracking-wider">
-                  Category
-                </Text>
-                <View className="flex-row flex-wrap gap-1.5">
-                  {(["MAINTENANCE", "UTILITIES", "SALARIES", "FESTIVAL", "REPAIRS", "OTHERS"] as const).map((cat) => (
-                    <Pressable
-                      key={cat}
-                      onPress={() => setExpenseCategory(cat)}
-                      className={`px-2.5 py-1.5 rounded-lg border ${
-                        expenseCategory === cat
-                          ? "bg-primary-light/10 dark:bg-primary-dark/10 border-primary-light dark:border-primary-dark"
-                          : "bg-muted-light dark:bg-muted-dark border-border-light dark:border-border-dark"
-                      }`}
-                    >
-                      <Text className={`text-xxs uppercase tracking-wider ${expenseCategory === cat ? "text-primary-light dark:text-primary-dark font-bold" : "text-muted-foreground-light dark:text-muted-foreground-dark"}`}>
-                        {cat}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-
-              {/* Budget connector */}
-              {budgets.length > 0 && (
-                <View className="gap-1.5 mt-3">
-                  <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-semibold uppercase tracking-wider">
-                    Link to Budget (Optional)
-                  </Text>
-                  <View className="flex-row flex-wrap gap-1.5">
-                    <Pressable
-                      onPress={() => setExpenseBudgetId("")}
-                      className={`px-2.5 py-1.5 rounded-lg border ${
-                        expenseBudgetId === ""
-                          ? "bg-primary-light/10 dark:bg-primary-dark/10 border-primary-light dark:border-primary-dark"
-                          : "bg-muted-light dark:bg-muted-dark border-border-light dark:border-border-dark"
-                      }`}
-                    >
-                      <Text className={`text-xxs ${expenseBudgetId === "" ? "text-primary-light dark:text-primary-dark font-bold" : "text-muted-foreground-light dark:text-muted-foreground-dark"}`}>
-                        None
-                      </Text>
-                    </Pressable>
-                    {budgets.map((b: any) => (
-                      <Pressable
-                        key={b.id}
-                        onPress={() => setExpenseBudgetId(b.id)}
-                        className={`px-2.5 py-1.5 rounded-lg border ${
-                          expenseBudgetId === b.id
-                            ? "bg-primary-light/10 dark:bg-primary-dark/10 border-primary-light dark:border-primary-dark"
-                            : "bg-muted-light dark:bg-muted-dark border-border-light dark:border-border-dark"
-                        }`}
-                      >
-                        <Text className={`text-xxs ${expenseBudgetId === b.id ? "text-primary-light dark:text-primary-dark font-bold" : "text-muted-foreground-light dark:text-muted-foreground-dark"}`}>
-                          {b.title}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              <View className="gap-1.5 mt-3 mb-2">
-                <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-semibold uppercase tracking-wider">
-                  Description
-                </Text>
-                <TextInput
-                  value={expenseDescription}
-                  onChangeText={setExpenseDescription}
-                  placeholder="e.g. Main gate lights repairs"
-                  placeholderTextColor="#78716c"
-                  className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl px-3.5 py-2.5 text-xs"
-                />
-              </View>
-            </ScrollView>
-
-            <Pressable
-              onPress={handleCreateExpense}
-              disabled={createExpenseMutation.isPending}
-              className="bg-primary-light dark:bg-primary-dark active:opacity-90 disabled:opacity-50 py-3 rounded-xl items-center"
-            >
-              {createExpenseMutation.isPending ? (
-                <ActivityIndicator size="small" color="#ffffff" />
-              ) : (
-                <Text className="text-white font-bold text-xs">Save Expense</Text>
-              )}
-            </Pressable>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* FESTIVAL MODAL */}
-      <Modal visible={festivalModalVisible} transparent animationType="fade">
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          className="flex-1 justify-center items-center bg-black/60 px-4"
-        >
-          <View className="bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-3xl p-5 w-full max-w-[340px] gap-4">
-            <View className="flex-row justify-between items-center">
-              <Text className="text-foreground-light dark:text-foreground-dark font-bold text-sm">Plan Festival Event</Text>
-              <Pressable onPress={() => setFestivalModalVisible(false)}>
-                <Ionicons name="close" size={20} color="#78716c" />
-              </Pressable>
-            </View>
-
-            <View className="gap-1.5">
-              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-semibold uppercase tracking-wider">
-                Festival Name
-              </Text>
-              <TextInput
-                value={festivalName}
-                onChangeText={setFestivalName}
-                placeholder="e.g. Diwali Festivities 2026"
-                placeholderTextColor="#78716c"
-                className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl px-3.5 py-2.5 text-xs"
-              />
-            </View>
-
-            <View className="gap-1.5">
-              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-semibold uppercase tracking-wider">
-                Description
-              </Text>
-              <TextInput
-                value={festivalDesc}
-                onChangeText={setFestivalDesc}
-                placeholder="Details of celebration & events"
-                placeholderTextColor="#78716c"
-                className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl px-3.5 py-2.5 text-xs"
-              />
-            </View>
-
-            <View className="gap-1.5">
-              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-semibold uppercase tracking-wider">
-                Allocate Budget (Optional)
-              </Text>
-              <TextInput
-                value={festivalBudget}
-                onChangeText={setFestivalBudget}
-                keyboardType="numeric"
-                placeholder="e.g. 20000 (auto-creates linked budget)"
-                placeholderTextColor="#78716c"
-                className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl px-3.5 py-2.5 text-xs font-mono"
-              />
-            </View>
-
-            <Pressable
-              onPress={handleCreateFestival}
-              disabled={createFestivalMutation.isPending}
-              className="bg-primary-light dark:bg-primary-dark active:opacity-90 disabled:opacity-50 py-3 rounded-xl items-center"
-            >
-              {createFestivalMutation.isPending ? (
-                <ActivityIndicator size="small" color="#ffffff" />
-              ) : (
-                <Text className="text-white font-bold text-xs">Save Plan</Text>
-              )}
-            </Pressable>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-      {/* EXPORT MODAL */}
-      <Modal visible={showExportModal} transparent animationType="fade">
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          className="flex-1 justify-center items-center bg-black/60 px-4"
-        >
-          <View className="bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-3xl p-5 w-full max-w-[340px] gap-4">
-            <View className="flex-row justify-between items-center">
-              <Text className="text-foreground-light dark:text-foreground-dark font-bold text-sm">Export Report</Text>
-              <Pressable onPress={() => setShowExportModal(false)}>
-                <Ionicons name="close" size={20} color="#78716c" />
-              </Pressable>
-            </View>
-
-            <ScrollView className="max-h-[360px] gap-4" showsVerticalScrollIndicator={false}>
-              {/* Format selection */}
-              <View className="gap-1.5">
-                <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-semibold uppercase tracking-wider">Format</Text>
-                <View className="flex-row gap-2">
-                  {(["pdf", "csv"] as const).map((fmt) => (
-                    <Pressable
-                      key={fmt}
-                      onPress={() => setExportFormat(fmt)}
-                      className={`flex-1 py-2 rounded-xl border items-center ${
-                        exportFormat === fmt
-                          ? "bg-primary-light/10 dark:bg-primary-dark/10 border-primary-light dark:border-primary-dark"
-                          : "bg-muted-light dark:bg-muted-dark border-border-light dark:border-border-dark"
-                      }`}
-                    >
-                      <Text className={`text-xs font-bold uppercase ${exportFormat === fmt ? "text-primary-light dark:text-primary-dark" : "text-muted-foreground-light dark:text-muted-foreground-dark"}`}>
-                        {fmt}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-
-              {/* Scope selection */}
-              <View className="gap-1.5 mt-3">
-                <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-semibold uppercase tracking-wider">Scope</Text>
-                <View className="flex-row flex-wrap gap-1.5">
-                  {[
-                    { key: "all", label: "Full Statement" },
-                    { key: "expenses", label: "Expenses Log" },
-                    { key: "budgets", label: "Budgets List" },
-                  ].map((sc) => (
-                    <Pressable
-                      key={sc.key}
-                      onPress={() => setExportScope(sc.key as any)}
-                      className={`px-3 py-2 rounded-xl border items-center ${
-                        exportScope === sc.key
-                          ? "bg-primary-light/10 dark:bg-primary-dark/10 border-primary-light dark:border-primary-dark"
-                          : "bg-muted-light dark:bg-muted-dark border-border-light dark:border-border-dark"
-                      }`}
-                    >
-                      <Text className={`text-xxs font-bold ${exportScope === sc.key ? "text-primary-light dark:text-primary-dark" : "text-muted-foreground-light dark:text-muted-foreground-dark"}`}>
-                        {sc.label}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-
-              {/* Date Filter selection */}
-              <View className="gap-1.5 mt-3">
-                <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-semibold uppercase tracking-wider">Date Period</Text>
-                <View className="flex-row flex-wrap gap-1.5">
-                  {[
-                    { key: "all", label: "All Time" },
-                    { key: "month", label: "This Month" },
-                    { key: "year", label: "This Year" },
-                    { key: "custom", label: "Custom" },
-                  ].map((dt) => (
-                    <Pressable
-                      key={dt.key}
-                      onPress={() => setExportDateRange(dt.key as any)}
-                      className={`px-3 py-2 rounded-xl border items-center ${
-                        exportDateRange === dt.key
-                          ? "bg-primary-light/10 dark:bg-primary-dark/10 border-primary-light dark:border-primary-dark"
-                          : "bg-muted-light dark:bg-muted-dark border-border-light dark:border-border-dark"
-                      }`}
-                    >
-                      <Text className={`text-xxs font-bold ${exportDateRange === dt.key ? "text-primary-light dark:text-primary-dark" : "text-muted-foreground-light dark:text-muted-foreground-dark"}`}>
-                        {dt.label}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-
-              {/* Custom Date Ranges */}
-              {exportDateRange === "custom" && (
-                <View className="flex-row gap-2 mt-3">
-                  <View className="flex-1 gap-1.5">
-                    <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[9px] font-semibold uppercase tracking-wider">Start Date</Text>
-                    <TextInput
-                      value={exportStartDate}
-                      onChangeText={setExportStartDate}
-                      placeholder="YYYY-MM-DD"
-                      placeholderTextColor="#78716c"
-                      className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl px-3 py-2 text-xxs font-mono"
-                    />
-                  </View>
-                  <View className="flex-1 gap-1.5">
-                    <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[9px] font-semibold uppercase tracking-wider">End Date</Text>
-                    <TextInput
-                      value={exportEndDate}
-                      onChangeText={setExportEndDate}
-                      placeholder="YYYY-MM-DD"
-                      placeholderTextColor="#78716c"
-                      className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl px-3 py-2 text-xxs font-mono"
-                    />
-                  </View>
-                </View>
-              )}
-
-              {/* Category Filter (Expenses specific) */}
-              {(exportScope === "all" || exportScope === "expenses") && (
-                <View className="gap-1.5 mt-3 mb-2">
-                  <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-semibold uppercase tracking-wider">Expense Category</Text>
-                  <View className="flex-row flex-wrap gap-1.5">
-                    {["ALL", "MAINTENANCE", "UTILITIES", "SALARIES", "FESTIVAL", "REPAIRS", "OTHERS"].map((cat) => (
-                      <Pressable
-                        key={cat}
-                        onPress={() => setExportCategory(cat)}
-                        className={`px-2.5 py-1.5 rounded-lg border ${
-                          exportCategory === cat
-                            ? "bg-primary-light/10 dark:bg-primary-dark/10 border-primary-light dark:border-primary-dark"
-                            : "bg-muted-light dark:bg-muted-dark border-border-light dark:border-border-dark"
-                        }`}
-                      >
-                        <Text className={`text-[10px] font-bold ${exportCategory === cat ? "text-primary-light dark:text-primary-dark" : "text-muted-foreground-light dark:text-muted-foreground-dark"}`}>
-                          {cat}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
-              )}
-            </ScrollView>
-
-            <Pressable
-              onPress={handleTriggerExport}
-              disabled={isExporting}
-              className="bg-primary-light dark:bg-primary-dark active:opacity-90 disabled:opacity-50 py-3 rounded-xl items-center mt-2"
-            >
-              {isExporting ? (
-                <ActivityIndicator size="small" color="#ffffff" />
-              ) : (
-                <Text className="text-white font-bold text-xs">Export Report</Text>
-              )}
-            </Pressable>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <ExportModal
+        visible={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        onExport={handleTriggerExport}
+        isExporting={isExporting}
+      />
     </ScreenContainer>
   );
 }
+
+export default TreasuryView;

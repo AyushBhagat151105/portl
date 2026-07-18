@@ -97,7 +97,7 @@ export function TreasuryCharts({ budgets, expenses }: TreasuryChartProps) {
               <Text className="text-foreground-light dark:text-foreground-dark font-extrabold text-sm">
                 {utilizedPercent.toFixed(0)}%
               </Text>
-              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[9px] uppercase font-bold tracking-wider">
+              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[11px] uppercase font-bold tracking-wider">
                 Used
               </Text>
             </View>
@@ -105,7 +105,7 @@ export function TreasuryCharts({ budgets, expenses }: TreasuryChartProps) {
 
           <View className="flex-row gap-5 mt-4">
             <View className="items-center">
-              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[9px] font-semibold uppercase tracking-wider">
+              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[11px] font-semibold uppercase tracking-wider">
                 Budget
               </Text>
               <Text className="text-foreground-light dark:text-foreground-dark text-xs font-bold mt-0.5">
@@ -113,7 +113,7 @@ export function TreasuryCharts({ budgets, expenses }: TreasuryChartProps) {
               </Text>
             </View>
             <View className="items-center">
-              <Text className="text-rose-500 text-[9px] font-semibold uppercase tracking-wider">
+              <Text className="text-rose-500 text-[11px] font-semibold uppercase tracking-wider">
                 Spent
               </Text>
               <Text className="text-foreground-light dark:text-foreground-dark text-xs font-bold mt-0.5">
@@ -121,7 +121,7 @@ export function TreasuryCharts({ budgets, expenses }: TreasuryChartProps) {
               </Text>
             </View>
             <View className="items-center">
-              <Text className="text-emerald-500 text-[9px] font-semibold uppercase tracking-wider">
+              <Text className="text-emerald-500 text-[11px] font-semibold uppercase tracking-wider">
                 Remaining
               </Text>
               <Text className="text-foreground-light dark:text-foreground-dark text-xs font-bold mt-0.5">

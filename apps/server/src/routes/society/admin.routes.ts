@@ -16,6 +16,7 @@ router.patch("/residents/assign-flat", AdminSocietyController.assignFlat);
 router.post("/residents", AdminSocietyController.createResident);
 router.put("/residents/:id", AdminSocietyController.updateResident);
 router.delete("/residents/:id", AdminSocietyController.deleteResident);
+router.get("/residents/:id/aadhar-url", AdminSocietyController.getResidentAadharUrl);
 
 // Flat Allocation
 router.put("/flats/allocate", AdminSocietyController.allocateFlat);

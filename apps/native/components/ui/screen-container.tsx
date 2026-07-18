@@ -1,12 +1,14 @@
 import React from "react";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
-import { View } from "react-native";
+import { View, RefreshControl, useColorScheme } from "react-native";
 
 interface ScreenContainerProps {
   children: React.ReactNode;
   scrollable?: boolean;
   contentContainerStyle?: Record<string, any>;
   className?: string;
+  onRefresh?: () => void;
+  refreshing?: boolean;
 }
 
 export function ScreenContainer({
@@ -14,8 +16,12 @@ export function ScreenContainer({
   scrollable = true,
   contentContainerStyle = {},
   className = "",
+  onRefresh,
+  refreshing = false,
 }: ScreenContainerProps) {
   const bgClasses = "flex-1 bg-background-light dark:bg-background-dark";
+  const colorScheme = useColorScheme();
+  const refreshColor = colorScheme === "dark" ? "#f97316" : "#b45309";
 
   if (scrollable) {
     return (
@@ -23,6 +29,16 @@ export function ScreenContainer({
         className={`${bgClasses} ${className}`}
         contentContainerStyle={{ flexGrow: 1, ...contentContainerStyle }}
         keyboardShouldPersistTaps="handled"
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={refreshColor}
+              colors={[refreshColor]}
+            />
+          ) : undefined
+        }
       >
         {children}
       </KeyboardAwareScrollView>

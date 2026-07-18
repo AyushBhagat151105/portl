@@ -1,7 +1,6 @@
-import React, { useState } from "react";
-import { ScrollView, Text, View, Pressable, ActivityIndicator, TextInput, Modal, KeyboardAvoidingView, Platform } from "react-native";
+import React, { useState, useCallback } from "react";
+import { ScrollView, Text, View, Pressable, Alert, useColorScheme } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useColorScheme } from "react-native";
 import {
   useMembersQuery,
   useTowersQuery,
@@ -14,43 +13,12 @@ import { useToastStore } from "@/store/useToastStore";
 import { ScreenContainer } from "../ui/screen-container";
 import { Card } from "../ui/card";
 import { Loader } from "../ui/loader";
-
-type Member = {
-  id: string;
-  role: string;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    image?: string;
-    aadharNumber?: string;
-    vehicleNumber?: string;
-    flats: {
-      id: string;
-      number: string;
-      occupancyStatus: string;
-      memberCount: number;
-      vehicleMemberCount: number;
-      tower: { name: string };
-    }[];
-  };
-};
-
-type Flat = {
-  id: string;
-  number: string;
-  occupancyStatus: string;
-  memberCount: number;
-  vehicleMemberCount: number;
-  ownerId?: string | null;
-  residents: { id: string; name: string }[];
-};
-
-type Tower = {
-  id: string;
-  name: string;
-  flats: Flat[];
-};
+import { SectionHeader } from "../ui/section-header";
+import { SearchInput } from "../ui/search-input";
+import { ResidentCard, type Member } from "./residents/resident-card";
+import { ResidentFormModal } from "./residents/resident-form-modal";
+import { FlatAllocationModal } from "./residents/flat-allocation-modal";
+import { type AllocateFlatFormData } from "@/lib/form-schemas";
 
 export function ManageResidentsView() {
   const { data: members = [], isLoading: membersLoading, refetch: refetchMembers } = useMembersQuery();
@@ -63,29 +31,20 @@ export function ManageResidentsView() {
 
   const { showToast } = useToastStore();
   const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
 
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
 
   // Modals visibility
-  const [residentModalVisible, setResidentModalVisible] = useState(false);
-  const [editResidentModalVisible, setEditResidentModalVisible] = useState(false);
+  const [residentFormModalVisible, setResidentFormModalVisible] = useState(false);
+  const [residentFormMode, setResidentFormMode] = useState<"create" | "edit">("create");
+  const [editingResident, setEditingResident] = useState<any | null>(null);
   const [allocationModalVisible, setAllocationModalVisible] = useState(false);
 
-  // Resident Form state
-  const [residentName, setResidentName] = useState("");
-  const [residentEmail, setResidentEmail] = useState("");
-  const [residentAadhar, setResidentAadhar] = useState("");
-  const [residentAvatar, setResidentAvatar] = useState("");
-  const [editingUserId, setEditingUserId] = useState<string | null>(null);
-
   // Flat Allocation state
-  const [selectedFlatId, setSelectedFlatId] = useState<string | null>(null);
-  const [flatOccupancyStatus, setFlatOccupancyStatus] = useState<"VACANT" | "OWNER_OCCUPIED" | "RENTED">("VACANT");
-  const [flatOwnerId, setFlatOwnerId] = useState<string | null>(null);
-  const [flatMemberCount, setFlatMemberCount] = useState("0");
-  const [flatVehicleMemberCount, setFlatVehicleMemberCount] = useState("0");
-  const [flatResidentIds, setFlatResidentIds] = useState<string[]>([]);
+  const [selectedFlatAllocation, setSelectedFlatAllocation] = useState<any | null>(null);
 
   const residents = (members as Member[]).filter((m) => m.role.toLowerCase() === "resident");
   const filteredResidents = residents.filter((m) =>
@@ -93,104 +52,119 @@ export function ManageResidentsView() {
     m.user.email.toLowerCase().includes(searchText.toLowerCase())
   );
 
-  const handleCreateResident = async () => {
-    if (!residentName.trim() || !residentEmail.trim()) {
-      showToast("Name and Email are required", "error");
-      return;
-    }
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
     try {
-      await createResidentMutation.mutateAsync({
-        name: residentName.trim(),
-        email: residentEmail.trim().toLowerCase(),
-        aadharNumber: residentAadhar.trim() || undefined,
-        image: residentAvatar.trim() || undefined,
-      });
-      showToast("Resident account registered!", "success");
-      setResidentName("");
-      setResidentEmail("");
-      setResidentAadhar("");
-      setResidentAvatar("");
-      setResidentModalVisible(false);
-      refetchMembers();
-    } catch (err: any) {
-      showToast(err.message || "Failed to create resident", "error");
+      await Promise.all([refetchMembers(), refetchTowers()]);
+    } finally {
+      setRefreshing(false);
     }
+  }, [refetchMembers, refetchTowers]);
+
+  const handleOpenCreate = () => {
+    setResidentFormMode("create");
+    setEditingResident(null);
+    setResidentFormModalVisible(true);
   };
 
   const handleOpenEdit = (member: Member) => {
-    setEditingUserId(member.user.id);
-    setResidentName(member.user.name);
-    setResidentEmail(member.user.email);
-    setResidentAadhar(member.user.aadharNumber || "");
-    setResidentAvatar(member.user.image || "");
-    setEditResidentModalVisible(true);
+    setResidentFormMode("edit");
+    setEditingResident({
+      id: member.user.id,
+      name: member.user.name,
+      email: member.user.email,
+      aadharNumber: member.user.aadharNumber || "",
+      image: member.user.image || "",
+      aadharPublicId: member.user.aadharPublicId || "",
+    });
+    setResidentFormModalVisible(true);
   };
 
-  const handleUpdateResident = async () => {
-    if (!editingUserId) return;
+  const handleResidentSubmit = async (data: any) => {
     try {
-      await updateResidentMutation.mutateAsync({
-        userId: editingUserId,
-        data: {
-          name: residentName.trim(),
-          aadharNumber: residentAadhar.trim() || null,
-          image: residentAvatar.trim() || null,
+      if (residentFormMode === "create") {
+        await createResidentMutation.mutateAsync({
+          name: data.name.trim(),
+          email: data.email.trim().toLowerCase(),
+          aadharNumber: data.aadharNumber?.trim() || undefined,
+          image: data.image?.trim() || undefined,
+          aadharPublicId: data.aadharPublicId?.trim() || undefined,
+        });
+        showToast("Resident account registered!", "success");
+      } else {
+        await updateResidentMutation.mutateAsync({
+          userId: editingResident.id,
+          data: {
+            name: data.name.trim(),
+            email: data.email.trim().toLowerCase(),
+            aadharNumber: data.aadharNumber?.trim() || null,
+            image: data.image?.trim() || null,
+            aadharPublicId: data.aadharPublicId?.trim() || null,
+          },
+        });
+        showToast("Profile updated successfully", "success");
+      }
+      setResidentFormModalVisible(false);
+      setEditingResident(null);
+      refetchMembers();
+    } catch (err: any) {
+      showToast(err.message || "Failed to save resident profile", "error");
+    }
+  };
+
+  const handleDeleteResident = (userId: string, userName: string) => {
+    Alert.alert(
+      "Remove Resident",
+      `Remove ${userName} from the society? This will revoke their access and flat associations.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteResidentMutation.mutateAsync(userId);
+              showToast("Resident removed from society successfully", "success");
+              refetchMembers();
+            } catch (err: any) {
+              showToast(err.message || "Failed to delete resident", "error");
+            }
+          },
         },
-      });
-      showToast("Profile updated successfully", "success");
-      setEditResidentModalVisible(false);
-      setEditingUserId(null);
-      refetchMembers();
-    } catch (err: any) {
-      showToast(err.message || "Failed to update profile", "error");
-    }
+      ]
+    );
   };
 
-  const handleDeleteResident = async (userId: string) => {
-    try {
-      await deleteResidentMutation.mutateAsync(userId);
-      showToast("Resident removed from society successfully", "success");
-      refetchMembers();
-    } catch (err: any) {
-      showToast(err.message || "Failed to delete resident", "error");
-    }
-  };
-
-  const handleOpenAllocation = (flat: any, towerName: string) => {
-    setSelectedFlatId(flat.id);
-    setFlatOccupancyStatus(flat.occupancyStatus as any || "VACANT");
-    setFlatOwnerId(flat.ownerId || null);
-    setFlatMemberCount(String(flat.memberCount || 0));
-    setFlatVehicleMemberCount(String(flat.vehicleMemberCount || 0));
-    setFlatResidentIds(flat.residents?.map((r: any) => r.id) || []);
+  const handleOpenAllocation = (flat: any) => {
+    setSelectedFlatAllocation({
+      flatId: flat.id,
+      occupancyStatus: flat.occupancyStatus || "VACANT",
+      ownerId: flat.ownerId || null,
+      memberCount: String(flat.memberCount || 0),
+      vehicleMemberCount: String(flat.vehicleMemberCount || 0),
+      residentIds: flat.residents?.map((r: any) => r.id) || [],
+    });
     setAllocationModalVisible(true);
   };
 
-  const handleAllocateFlat = async () => {
-    if (!selectedFlatId) return;
+  const handleAllocateFlatSubmit = async (data: AllocateFlatFormData) => {
+    if (!selectedFlatAllocation) return;
     try {
       await allocateFlatMutation.mutateAsync({
-        flatId: selectedFlatId,
-        ownerId: flatOwnerId || null,
-        occupancyStatus: flatOccupancyStatus,
-        memberCount: parseInt(flatMemberCount) || 0,
-        vehicleMemberCount: parseInt(flatVehicleMemberCount) || 0,
-        residentIds: flatResidentIds,
+        flatId: selectedFlatAllocation.flatId,
+        ownerId: data.ownerId || null,
+        occupancyStatus: data.occupancyStatus,
+        memberCount: parseInt(data.memberCount) || 0,
+        vehicleMemberCount: parseInt(data.vehicleMemberCount) || 0,
+        residentIds: data.residentIds,
       });
       showToast("Flat allocations saved successfully", "success");
       setAllocationModalVisible(false);
+      setSelectedFlatAllocation(null);
       refetchTowers();
       refetchMembers();
     } catch (err: any) {
       showToast(err.message || "Failed to save allocations", "error");
-    }
-  };
-
-  const toggleFlatResident = (userId: string) => {
-    if (flatResidentIds.includes(userId)) {
-      setFlatResidentIds(flatResidentIds.filter((id) => id !== userId));
-    } else {
-      setFlatResidentIds([...flatResidentIds, userId]);
     }
   };
 
@@ -201,7 +175,11 @@ export function ManageResidentsView() {
   const primaryColor = colorScheme === "dark" ? "#f97316" : "#b45309";
 
   return (
-    <ScreenContainer contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+    <ScreenContainer
+      contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+      onRefresh={handleRefresh}
+      refreshing={refreshing}
+    >
       {/* Header */}
       <View className="mb-5 flex-row justify-between items-center">
         <View className="flex-1 pr-4">
@@ -211,112 +189,56 @@ export function ManageResidentsView() {
           </Text>
         </View>
         <Pressable
-          onPress={() => setResidentModalVisible(true)}
+          onPress={handleOpenCreate}
           className="bg-primary-light dark:bg-primary-dark px-3 py-2 rounded-xl flex-row items-center gap-1 active:opacity-90"
+          accessibilityRole="button"
+          accessibilityLabel="Add new resident to society"
         >
           <Ionicons name="add" size={16} color="#ffffff" />
           <Text className="text-white font-bold text-xs">Add Resident</Text>
         </Pressable>
       </View>
 
-      {/* Search */}
-      <View className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark rounded-xl px-3 py-2.5 flex-row items-center gap-2 mb-5">
-        <Ionicons name="search-outline" size={16} color="#78716c" />
-        <TextInput
-          value={searchText}
-          onChangeText={setSearchText}
-          placeholder="Search residents..."
-          placeholderTextColor="#78716c"
-          className="flex-1 text-foreground-light dark:text-foreground-dark text-sm"
-        />
-      </View>
+      {/* Search Bar using SearchInput with debounce */}
+      <SearchInput
+        value={searchText}
+        onChangeText={setSearchText}
+        placeholder="Search residents..."
+        className="mb-5"
+      />
 
-      {/* Toggle View Section */}
       <View className="gap-6">
         {/* Residents list */}
         <View className="gap-3">
-          <Text className="text-foreground-light dark:text-foreground-dark font-bold text-sm">Members list</Text>
+          <SectionHeader title="Members list" />
           {filteredResidents.length === 0 ? (
             <Card className="items-center py-8">
               <Ionicons name="people-outline" size={32} color="#78716c" />
               <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-sm mt-3 text-center">No residents found</Text>
             </Card>
           ) : (
-            filteredResidents.map((member) => {
-              const isSelected = selectedMemberId === member.id;
-              const currentFlats = member.user.flats;
-
-              return (
-                <View
-                  key={member.id}
-                  className="bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-2xl overflow-hidden"
-                >
-                  <Pressable
-                    onPress={() => setSelectedMemberId(isSelected ? null : member.id)}
-                    className="p-4 flex-row items-center gap-3"
-                  >
-                    <View className="w-10 h-10 rounded-full bg-primary-light/10 dark:bg-primary-dark/10 items-center justify-center border border-primary-light/20">
-                      <Text className="text-primary-light dark:text-primary-dark font-bold text-sm">
-                        {member.user.name.charAt(0).toUpperCase()}
-                      </Text>
-                    </View>
-                    <View className="flex-1">
-                      <Text className="text-foreground-light dark:text-foreground-dark font-semibold text-sm">{member.user.name}</Text>
-                      <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs mt-0.5">{member.user.email}</Text>
-                      {currentFlats.length > 0 ? (
-                        <View className="flex-row flex-wrap gap-1 mt-1.5">
-                          {currentFlats.map((f) => (
-                            <View key={f.id} className="bg-primary-light/10 dark:bg-primary-dark/10 border border-primary-light/20 dark:border-primary-dark/20 rounded-md px-2 py-0.5">
-                              <Text className="text-primary-light dark:text-primary-dark text-[10px] font-bold font-mono">
-                                {f.tower.name} — {f.number} ({f.occupancyStatus})
-                              </Text>
-                            </View>
-                          ))}
-                        </View>
-                      ) : (
-                        <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[10px] mt-1 italic">No flat occupied</Text>
-                      )}
-                    </View>
-                    <Ionicons
-                      name={isSelected ? "chevron-up" : "chevron-down"}
-                      size={16}
-                      color="#78716c"
-                    />
-                  </Pressable>
-
-                  {/* Expanded Actions */}
-                  {isSelected && (
-                    <View className="border-t border-border-light dark:border-border-dark p-3.5 gap-2 bg-muted-light/20 dark:bg-muted-dark/20 flex-row justify-end">
-                      <Pressable
-                        onPress={() => handleOpenEdit(member)}
-                        className="bg-primary-light/10 dark:bg-primary-dark/10 border border-primary-light/20 dark:border-primary-dark/20 px-3 py-2 rounded-xl flex-row items-center gap-1 active:opacity-75"
-                      >
-                        <Ionicons name="create-outline" size={14} color={primaryColor} />
-                        <Text className="text-primary-light dark:text-primary-dark text-xs font-bold">Edit Profile</Text>
-                      </Pressable>
-                      <Pressable
-                        onPress={() => handleDeleteResident(member.user.id)}
-                        className="bg-rose-500/10 border border-rose-500/25 px-3 py-2 rounded-xl flex-row items-center gap-1 active:opacity-75"
-                      >
-                        <Ionicons name="trash-outline" size={14} color="#f43f5e" />
-                        <Text className="text-rose-500 text-xs font-bold">Remove</Text>
-                      </Pressable>
-                    </View>
-                  )}
-                </View>
-              );
-            })
+            filteredResidents.map((member) => (
+              <ResidentCard
+                key={member.id}
+                member={member}
+                isSelected={selectedMemberId === member.id}
+                onToggle={() => setSelectedMemberId(selectedMemberId === member.id ? null : member.id)}
+                onEdit={() => handleOpenEdit(member)}
+                onDelete={() => handleDeleteResident(member.user.id, member.user.name)}
+                primaryColor={primaryColor}
+              />
+            ))
           )}
         </View>
 
-        {/* Flexible flat allocation section */}
+        {/* Flat Allocation Grid Registry */}
         <View className="gap-3 mt-2">
-          <Text className="text-foreground-light dark:text-foreground-dark font-bold text-sm">Flats Allocation Registry</Text>
-          {towers.map((tower: Tower) => (
+          <SectionHeader title="Flats Allocation Registry" />
+          {towers.map((tower: any) => (
             <Card key={tower.id} className="gap-3">
               <Text className="text-foreground-light dark:text-foreground-dark font-bold text-sm">{tower.name}</Text>
               <View className="flex-row flex-wrap gap-2.5">
-                {tower.flats.map((flat) => {
+                {tower.flats.map((flat: any) => {
                   let occupancyColor = "bg-muted-light dark:bg-muted-dark border-border-light dark:border-border-dark text-muted-foreground-light";
                   if (flat.occupancyStatus === "OWNER_OCCUPIED") {
                     occupancyColor = "bg-emerald-500/10 border-emerald-500/25 text-emerald-600";
@@ -327,8 +249,10 @@ export function ManageResidentsView() {
                   return (
                     <Pressable
                       key={flat.id}
-                      onPress={() => handleOpenAllocation(flat, tower.name)}
+                      onPress={() => handleOpenAllocation(flat)}
                       className={`border rounded-xl p-3 items-center min-w-[80px] ${occupancyColor}`}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Flat number ${flat.number}, occupancy status ${flat.occupancyStatus || "VACANT"}`}
                     >
                       <Text className="text-xxs font-bold uppercase tracking-wider">
                         {flat.occupancyStatus || "VACANT"}
@@ -350,307 +274,28 @@ export function ManageResidentsView() {
         </View>
       </View>
 
-      {/* CREATE RESIDENT MODAL */}
-      <Modal visible={residentModalVisible} transparent animationType="fade">
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          className="flex-1 justify-center items-center bg-black/60 px-4"
-        >
-          <View className="bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-3xl p-5 w-full max-w-[340px] gap-4">
-            <View className="flex-row justify-between items-center">
-              <Text className="text-foreground-light dark:text-foreground-dark font-bold text-sm">Register Resident</Text>
-              <Pressable onPress={() => setResidentModalVisible(false)}>
-                <Ionicons name="close" size={20} color="#78716c" />
-              </Pressable>
-            </View>
+      {/* Resident Form Modal (Handles Create and Edit) */}
+      <ResidentFormModal
+        visible={residentFormModalVisible}
+        onClose={() => setResidentFormModalVisible(false)}
+        onSubmit={handleResidentSubmit}
+        isSubmitting={createResidentMutation.isPending || updateResidentMutation.isPending}
+        defaultValues={editingResident}
+        mode={residentFormMode}
+        title={residentFormMode === "create" ? "Register Resident" : "Edit Profile"}
+      />
 
-            <ScrollView className="max-h-[360px] gap-4">
-              <View className="gap-1.5">
-                <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-semibold uppercase tracking-wider">
-                  Full Name
-                </Text>
-                <TextInput
-                  value={residentName}
-                  onChangeText={setResidentName}
-                  placeholder="e.g. Rahul Sharma"
-                  placeholderTextColor="#78716c"
-                  className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl px-3.5 py-2.5 text-xs"
-                />
-              </View>
-
-              <View className="gap-1.5 mt-3">
-                <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-semibold uppercase tracking-wider">
-                  Email Address
-                </Text>
-                <TextInput
-                  value={residentEmail}
-                  onChangeText={setResidentEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  placeholder="e.g. rahul@gmail.com"
-                  placeholderTextColor="#78716c"
-                  className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl px-3.5 py-2.5 text-xs"
-                />
-              </View>
-
-              <View className="gap-1.5 mt-3">
-                <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-semibold uppercase tracking-wider">
-                  Aadhar Number
-                </Text>
-                <TextInput
-                  value={residentAadhar}
-                  onChangeText={(val) => setResidentAadhar(val.replace(/\D/g, "").slice(0, 12))}
-                  keyboardType="numeric"
-                  placeholder="12 Digit Aadhar"
-                  placeholderTextColor="#78716c"
-                  className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl px-3.5 py-2.5 text-xs font-mono"
-                />
-              </View>
-
-              <View className="gap-1.5 mt-3 mb-2">
-                <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-semibold uppercase tracking-wider">
-                  Avatar Image URL
-                </Text>
-                <TextInput
-                  value={residentAvatar}
-                  onChangeText={setResidentAvatar}
-                  placeholder="https://image-url..."
-                  placeholderTextColor="#78716c"
-                  className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl px-3.5 py-2.5 text-xs"
-                />
-              </View>
-            </ScrollView>
-
-            <Pressable
-              onPress={handleCreateResident}
-              disabled={createResidentMutation.isPending}
-              className="bg-primary-light dark:bg-primary-dark active:opacity-90 disabled:opacity-50 py-3 rounded-xl items-center"
-            >
-              {createResidentMutation.isPending ? (
-                <ActivityIndicator size="small" color="#ffffff" />
-              ) : (
-                <Text className="text-white font-bold text-xs">Save Resident</Text>
-              )}
-            </Pressable>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* EDIT RESIDENT MODAL */}
-      <Modal visible={editResidentModalVisible} transparent animationType="fade">
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          className="flex-1 justify-center items-center bg-black/60 px-4"
-        >
-          <View className="bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-3xl p-5 w-full max-w-[340px] gap-4">
-            <View className="flex-row justify-between items-center">
-              <Text className="text-foreground-light dark:text-foreground-dark font-bold text-sm">Edit Profile</Text>
-              <Pressable onPress={() => { setEditResidentModalVisible(false); setEditingUserId(null); }}>
-                <Ionicons name="close" size={20} color="#78716c" />
-              </Pressable>
-            </View>
-
-            <ScrollView className="max-h-[360px] gap-4">
-              <View className="gap-1.5">
-                <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-semibold uppercase tracking-wider">
-                  Full Name
-                </Text>
-                <TextInput
-                  value={residentName}
-                  onChangeText={setResidentName}
-                  placeholder="Rahul Sharma"
-                  placeholderTextColor="#78716c"
-                  className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl px-3.5 py-2.5 text-xs"
-                />
-              </View>
-
-              <View className="gap-1.5 mt-3">
-                <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-semibold uppercase tracking-wider">
-                  Aadhar Number
-                </Text>
-                <TextInput
-                  value={residentAadhar}
-                  onChangeText={(val) => setResidentAadhar(val.replace(/\D/g, "").slice(0, 12))}
-                  keyboardType="numeric"
-                  placeholder="12 Digit Aadhar"
-                  placeholderTextColor="#78716c"
-                  className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl px-3.5 py-2.5 text-xs font-mono"
-                />
-              </View>
-
-              <View className="gap-1.5 mt-3 mb-2">
-                <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-semibold uppercase tracking-wider">
-                  Avatar Image URL
-                </Text>
-                <TextInput
-                  value={residentAvatar}
-                  onChangeText={setResidentAvatar}
-                  placeholder="https://image-url..."
-                  placeholderTextColor="#78716c"
-                  className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl px-3.5 py-2.5 text-xs"
-                />
-              </View>
-            </ScrollView>
-
-            <Pressable
-              onPress={handleUpdateResident}
-              disabled={updateResidentMutation.isPending}
-              className="bg-primary-light dark:bg-primary-dark active:opacity-90 disabled:opacity-50 py-3 rounded-xl items-center"
-            >
-              {updateResidentMutation.isPending ? (
-                <ActivityIndicator size="small" color="#ffffff" />
-              ) : (
-                <Text className="text-white font-bold text-xs">Update Profile</Text>
-              )}
-            </Pressable>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* FLAT ALLOCATION MODAL */}
-      <Modal visible={allocationModalVisible} transparent animationType="fade">
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          className="flex-1 justify-center items-center bg-black/60 px-4"
-        >
-          <View className="bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-3xl p-5 w-full max-w-[340px] gap-4">
-            <View className="flex-row justify-between items-center">
-              <Text className="text-foreground-light dark:text-foreground-dark font-bold text-sm">Flat Configuration</Text>
-              <Pressable onPress={() => setAllocationModalVisible(false)}>
-                <Ionicons name="close" size={20} color="#78716c" />
-              </Pressable>
-            </View>
-
-            <ScrollView className="max-h-[380px] gap-4">
-              {/* Occupancy selection */}
-              <View className="gap-1.5">
-                <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-semibold uppercase tracking-wider">
-                  Occupancy Status
-                </Text>
-                <View className="flex-row gap-1.5">
-                  {(["VACANT", "OWNER_OCCUPIED", "RENTED"] as const).map((status) => (
-                    <Pressable
-                      key={status}
-                      onPress={() => setFlatOccupancyStatus(status)}
-                      className={`flex-1 py-1.5 rounded-lg border items-center ${
-                        flatOccupancyStatus === status
-                          ? "bg-primary-light/10 dark:bg-primary-dark/10 border-primary-light dark:border-primary-dark"
-                          : "bg-muted-light dark:bg-muted-dark border-border-light dark:border-border-dark"
-                      }`}
-                    >
-                      <Text className={`text-[10px] font-bold ${flatOccupancyStatus === status ? "text-primary-light dark:text-primary-dark" : "text-muted-foreground-light dark:text-muted-foreground-dark"}`}>
-                        {status}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-
-              {/* Owner assignee */}
-              <View className="gap-1.5 mt-3">
-                <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-semibold uppercase tracking-wider">
-                  Select Flat Owner
-                </Text>
-                <View className="flex-row flex-wrap gap-1.5">
-                  <Pressable
-                    onPress={() => setFlatOwnerId(null)}
-                    className={`px-2.5 py-1.5 rounded-lg border ${
-                      flatOwnerId === null
-                        ? "bg-primary-light/10 dark:bg-primary-dark/10 border-primary-light dark:border-primary-dark"
-                        : "bg-muted-light dark:bg-muted-dark border-border-light dark:border-border-dark"
-                    }`}
-                  >
-                    <Text className={`text-xxs ${flatOwnerId === null ? "text-primary-light dark:text-primary-dark font-bold" : "text-muted-foreground-light dark:text-muted-foreground-dark"}`}>
-                      No Owner
-                    </Text>
-                  </Pressable>
-                  {residents.map((r) => (
-                    <Pressable
-                      key={r.user.id}
-                      onPress={() => setFlatOwnerId(r.user.id)}
-                      className={`px-2.5 py-1.5 rounded-lg border ${
-                        flatOwnerId === r.user.id
-                          ? "bg-primary-light/10 dark:bg-primary-dark/10 border-primary-light dark:border-primary-dark"
-                          : "bg-muted-light dark:bg-muted-dark border-border-light dark:border-border-dark"
-                      }`}
-                    >
-                      <Text className={`text-xxs ${flatOwnerId === r.user.id ? "text-primary-light dark:text-primary-dark font-bold" : "text-muted-foreground-light dark:text-muted-foreground-dark"}`}>
-                        {r.user.name}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-
-              {/* Resident(s) assignee (Tenants / Occupants) */}
-              <View className="gap-1.5 mt-3">
-                <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-semibold uppercase tracking-wider">
-                  Select Occupying Residents (Tenants)
-                </Text>
-                <View className="flex-row flex-wrap gap-1.5">
-                  {residents.map((r) => {
-                    const isResSelected = flatResidentIds.includes(r.user.id);
-                    return (
-                      <Pressable
-                        key={r.user.id}
-                        onPress={() => toggleFlatResident(r.user.id)}
-                        className={`px-2.5 py-1.5 rounded-lg border ${
-                          isResSelected
-                            ? "bg-primary-light/10 dark:bg-primary-dark/10 border-primary-light dark:border-primary-dark"
-                            : "bg-muted-light dark:bg-muted-dark border-border-light dark:border-border-dark"
-                        }`}
-                      >
-                        <Text className={`text-xxs ${isResSelected ? "text-primary-light dark:text-primary-dark font-bold" : "text-muted-foreground-light dark:text-muted-foreground-dark"}`}>
-                          {r.user.name}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-
-              {/* memberCount and vehicleMemberCount fields */}
-              <View className="flex-row gap-3 mt-3 mb-2">
-                <View className="flex-1 gap-1">
-                  <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-semibold uppercase tracking-wider">
-                    Total Residents
-                  </Text>
-                  <TextInput
-                    value={flatMemberCount}
-                    onChangeText={(val) => setFlatMemberCount(val.replace(/\D/g, ""))}
-                    keyboardType="numeric"
-                    className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl px-3 py-2 text-xs font-mono"
-                  />
-                </View>
-                <View className="flex-1 gap-1">
-                  <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-semibold uppercase tracking-wider">
-                    Vehicle Users
-                  </Text>
-                  <TextInput
-                    value={flatVehicleMemberCount}
-                    onChangeText={(val) => setFlatVehicleMemberCount(val.replace(/\D/g, ""))}
-                    keyboardType="numeric"
-                    className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl px-3 py-2 text-xs font-mono"
-                  />
-                </View>
-              </View>
-            </ScrollView>
-
-            <Pressable
-              onPress={handleAllocateFlat}
-              disabled={allocateFlatMutation.isPending}
-              className="bg-primary-light dark:bg-primary-dark active:opacity-90 disabled:opacity-50 py-3 rounded-xl items-center"
-            >
-              {allocateFlatMutation.isPending ? (
-                <ActivityIndicator size="small" color="#ffffff" />
-              ) : (
-                <Text className="text-white font-bold text-xs">Save Flat Setup</Text>
-              )}
-            </Pressable>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      {/* Flat Allocation config modal */}
+      <FlatAllocationModal
+        visible={allocationModalVisible}
+        onClose={() => setAllocationModalVisible(false)}
+        onSubmit={handleAllocateFlatSubmit}
+        isSubmitting={allocateFlatMutation.isPending}
+        defaultValues={selectedFlatAllocation}
+        residents={residents}
+      />
     </ScreenContainer>
   );
 }
+
 export default ManageResidentsView;

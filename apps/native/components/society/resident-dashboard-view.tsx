@@ -16,6 +16,7 @@ import { useToastStore } from "../../store/useToastStore";
 import { ScreenContainer } from "../ui/screen-container";
 import { Card, CardTitle, CardDescription } from "../ui/card";
 import { Loader } from "../ui/loader";
+import { NoticeCard } from "./notices/notice-card";
 
 export function ResidentDashboardView() {
   return (
@@ -144,53 +145,13 @@ function NoticesList() {
   }
 
   return notices.map((not: any) => (
-    <Card key={not.id} className="mb-4 overflow-hidden border border-border-light dark:border-border-dark p-0">
-      {not.banner ? (
-        <Image source={{ uri: not.banner }} className="w-full h-36 object-cover" />
-      ) : null}
-      <View className="p-4 gap-2.5">
-        <View className="flex-row items-center justify-between">
-          <Text className="text-foreground-light dark:text-foreground-dark font-extrabold text-sm flex-1 mr-2 leading-snug">
-            {not.title}
-          </Text>
-          <View className="flex-row items-center gap-2">
-            {currentRole === "admin" && (
-              <Pressable
-                disabled={deleteMutation.isPending}
-                onPress={() => handleDelete(not.id)}
-                className="w-6 h-6 rounded-full bg-rose-500/10 items-center justify-center active:scale-95"
-              >
-                <Ionicons name="trash" size={13} color="#f43f5e" />
-              </Pressable>
-            )}
-            <Ionicons name="volume-medium-outline" size={16} color={primaryColor} />
-          </View>
-        </View>
-        <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs leading-relaxed">
-          {not.content}
-        </Text>
-        <View className="flex-row justify-between items-center border-t border-border-light/60 dark:border-border-dark/60 pt-3 mt-1.5">
-          <View className="flex-row items-center gap-1.5">
-            {not.author?.image ? (
-              <Image source={{ uri: not.author.image }} className="w-4 h-4 rounded-full" />
-            ) : (
-              <View className="w-4 h-4 rounded-full bg-muted-light dark:bg-muted-dark items-center justify-center">
-                <Ionicons name="person" size={8} color="#78716c" />
-              </View>
-            )}
-            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs font-bold">
-              {not.author?.name}
-            </Text>
-          </View>
-          <View className="flex-row items-center gap-1">
-            <Ionicons name="calendar-outline" size={10} color="#78716c" />
-            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[10px] font-medium">
-              {new Date(not.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}
-            </Text>
-          </View>
-        </View>
-      </View>
-    </Card>
+    <NoticeCard
+      key={not.id}
+      notice={not}
+      onDelete={currentRole === "admin" ? () => handleDelete(not.id) : null}
+      isDeleting={deleteMutation.isPending}
+      primaryColor={primaryColor}
+    />
   ));
 }
 

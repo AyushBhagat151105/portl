@@ -1,12 +1,15 @@
 import React from "react";
-import { Text, View, TextInput, Pressable, Alert, ActivityIndicator } from "react-native";
-import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
-import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { View, Text, Pressable, Alert, ActivityIndicator } from "react-native";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { useJoinSocietyMutation } from "@/queries/society";
 import { useSocietyStore } from "@/store/useSocietyStore";
+import { ScreenContainer } from "../ui/screen-container";
+import { FormInput } from "../ui/form-input";
+import { BackButton } from "./back-button";
+import { RoleCard } from "./role-card";
 import { joinSocietySchema, type JoinSocietyFormData } from "@/lib/form-schemas";
 
 const ROLES = [
@@ -34,7 +37,7 @@ export function JoinSocietyView() {
   const joinMutation = useJoinSocietyMutation();
   const { setRole: storeSetRole } = useSocietyStore();
 
-  const { control, handleSubmit, watch, setValue } = useForm<JoinSocietyFormData>({
+  const { control, handleSubmit, watch, setValue, formState: { isSubmitting } } = useForm<JoinSocietyFormData>({
     resolver: zodResolver(joinSocietySchema),
     mode: "onTouched",
     defaultValues: { slug: "", role: "resident" },
@@ -61,24 +64,17 @@ export function JoinSocietyView() {
   };
 
   return (
-    <KeyboardAwareScrollView
-      className="flex-1 bg-zinc-950"
-      contentContainerStyle={{ flexGrow: 1, padding: 24 }}
-      keyboardShouldPersistTaps="handled"
-    >
+    <ScreenContainer contentContainerStyle={{ padding: 24, flexGrow: 1 }}>
       {/* Back button */}
-      <Pressable onPress={() => router.back()} className="flex-row items-center gap-2 mb-8 mt-2">
-        <Ionicons name="arrow-back" size={20} color="#a1a1aa" />
-        <Text className="text-zinc-400 text-sm">Back</Text>
-      </Pressable>
+      <BackButton />
 
       {/* Header */}
       <View className="mb-8">
         <View className="w-14 h-14 rounded-2xl bg-sky-500/10 border border-sky-500/20 items-center justify-center mb-4">
           <Ionicons name="log-in-outline" size={28} color="#38bdf8" />
         </View>
-        <Text className="text-white text-2xl font-extrabold mb-1">Join a Society</Text>
-        <Text className="text-zinc-500 text-sm leading-relaxed">
+        <Text className="text-foreground-light dark:text-foreground-dark text-2xl font-extrabold mb-1">Join a Society</Text>
+        <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-sm leading-relaxed">
           Ask your society admin for the join code. Select your role below.
         </Text>
       </View>
@@ -86,64 +82,31 @@ export function JoinSocietyView() {
       {/* Form */}
       <View className="gap-6">
         {/* Society Code */}
-        <View className="gap-2">
-          <Text className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Society Code</Text>
-          <Controller
-            control={control}
-            name="slug"
-            render={({ field }) => (
-              <TextInput
-                value={field.value}
-                onChangeText={field.onChange}
-                onBlur={field.onBlur}
-                placeholder="e.g. sunshine-apts"
-                placeholderTextColor="#52525b"
-                autoCapitalize="none"
-                autoCorrect={false}
-                className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3.5 text-white text-sm font-mono"
-              />
-            )}
-          />
-        </View>
+        <FormInput
+          control={control}
+          name="slug"
+          label="Society Code"
+          placeholder="e.g. sunshine-apts"
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
 
         {/* Role Selection */}
         <View className="gap-2">
-          <Text className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">I am a…</Text>
+          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs font-semibold uppercase tracking-wider">I am a…</Text>
           <Controller
             control={control}
             name="role"
             render={({ field }) => (
               <View className="gap-3">
-                {ROLES.map((r) => {
-                  const active = field.value === r.key;
-                  return (
-                    <Pressable
-                      key={r.key}
-                      onPress={() => field.onChange(r.key)}
-                      className="flex-row items-center gap-4 p-4 rounded-xl border"
-                      style={{
-                        backgroundColor: active ? r.bg : "#18181b",
-                        borderColor: active ? r.border : "#27272a",
-                      }}
-                    >
-                      <View
-                        className="w-10 h-10 rounded-lg items-center justify-center"
-                        style={{ backgroundColor: active ? r.bg : "#09090b" }}
-                      >
-                        <Ionicons name={r.icon as any} size={20} color={active ? r.color : "#52525b"} />
-                      </View>
-                      <View className="flex-1">
-                        <Text style={{ color: active ? r.color : "#a1a1aa", fontWeight: active ? "700" : "400" }} className="text-sm">
-                          {r.label}
-                        </Text>
-                        <Text className="text-zinc-600 text-xs mt-0.5">{r.description}</Text>
-                      </View>
-                      {active && (
-                        <Ionicons name="checkmark-circle" size={20} color={r.color} />
-                      )}
-                    </Pressable>
-                  );
-                })}
+                {ROLES.map((r) => (
+                  <RoleCard
+                    key={r.key}
+                    role={r}
+                    active={field.value === r.key}
+                    onSelect={() => field.onChange(r.key)}
+                  />
+                ))}
               </View>
             )}
           />
@@ -151,20 +114,20 @@ export function JoinSocietyView() {
 
         <Pressable
           onPress={handleSubmit(onSubmit)}
-          disabled={joinMutation.isPending || !slugValue}
-          className="rounded-xl py-4 items-center mt-2"
-          style={{
-            backgroundColor: selectedRole === "guard" ? "#38bdf8" : "#f59e0b",
-            opacity: joinMutation.isPending || !slugValue ? 0.6 : 1,
-          }}
+          disabled={isSubmitting || !slugValue}
+          className="bg-primary-light dark:bg-primary-dark rounded-xl py-4 items-center mt-2 active:opacity-90 disabled:opacity-50"
+          accessibilityRole="button"
+          accessibilityLabel="Join society"
         >
-          {joinMutation.isPending ? (
-            <ActivityIndicator size="small" color="#000" />
+          {isSubmitting ? (
+            <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Text className="text-black font-bold text-sm">Join Society</Text>
+            <Text className="text-white font-bold text-sm">Join Society</Text>
           )}
         </Pressable>
       </View>
-    </KeyboardAwareScrollView>
+    </ScreenContainer>
   );
 }
+
+export default JoinSocietyView;
