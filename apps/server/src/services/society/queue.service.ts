@@ -10,7 +10,8 @@ export class QueueService {
     userId: string,
     title: string,
     body: string,
-    type: string
+    type: string,
+    imageUrl?: string | null
   ) {
     try {
       return await prisma.notificationJob.create({
@@ -19,6 +20,7 @@ export class QueueService {
           title,
           body,
           type,
+          imageUrl: imageUrl || null,
           status: "PENDING",
         },
       });
@@ -32,7 +34,8 @@ export class QueueService {
     userIds: string[],
     title: string,
     body: string,
-    type: string
+    type: string,
+    imageUrl?: string | null
   ): Promise<any> {
     try {
       if (userIds.length === 0) return;
@@ -42,6 +45,7 @@ export class QueueService {
         title,
         body,
         type,
+        imageUrl: imageUrl || null,
         status: "PENDING" as const,
       }));
 
@@ -112,10 +116,16 @@ export class QueueService {
           const nextAttempt = job.attempts + 1;
 
           // Attempt sending push notification
-          await sendPushNotification(job.userId, job.title, job.body, {
-            type: job.type,
-            jobId: job.id,
-          });
+          await sendPushNotification(
+            job.userId,
+            job.title,
+            job.body,
+            {
+              type: job.type,
+              jobId: job.id,
+            },
+            job.imageUrl
+          );
 
           // Mark as COMPLETED
           await prisma.notificationJob.update({

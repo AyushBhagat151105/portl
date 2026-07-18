@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from "react";
 import { Text, View } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
+import { useFocusEffect } from "expo-router";
 import { ScreenContainer } from "../ui/screen-container";
 import { StatsGrid } from "./admin/stats-grid";
 import { TreasurySummary } from "./admin/treasury-summary";
@@ -11,6 +12,13 @@ import { VisitorLogs } from "./admin/visitor-logs";
 export function AdminDashboardView() {
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
+
+  // Auto-refetch data when screen gains focus
+  useFocusEffect(
+    useCallback(() => {
+      queryClient.invalidateQueries();
+    }, [queryClient])
+  );
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);

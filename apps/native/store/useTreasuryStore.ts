@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type TreasuryTab = "balance-sheet" | "overview" | "expenses" | "festivals";
+export type TreasuryTab = "balance-sheet" | "overview" | "expenses" | "blocks" | "fds";
 export type LedgerFilter = "ALL" | "INFLOW" | "OUTFLOW";
 
 interface TreasuryStore {

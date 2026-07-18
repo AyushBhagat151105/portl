@@ -106,4 +106,14 @@ export class TreasuryController {
       return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
     }
   }
+
+  static async getBlockCollectionSummaries(c: Context) {
+    try {
+      const societyId = c.get("societyId");
+      const summaries = await TreasuryService.getBlockCollectionSummaries(societyId);
+      return successResponse(c, summaries);
+    } catch (err: any) {
+      return errorResponse(c, err.message, "INTERNAL_ERROR", 500);
+    }
+  }
 }

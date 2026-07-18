@@ -64,5 +64,7 @@ export const queryKeys = {
     budgets: () => ["treasury", "budgets"] as const,
     expenses: (category?: string) => ["treasury", "expenses", category] as const,
     festivals: () => ["treasury", "festivals"] as const,
+    fds: () => ["treasury", "fds"] as const,
+    blockSummaries: () => ["treasury", "reports", "blocks"] as const,
   },
 } as const;

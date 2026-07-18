@@ -10,6 +10,10 @@ import {
   useFestivalsQuery,
   useCreateFestivalMutation,
   useAdminDuesQuery,
+  useFixedDepositsQuery,
+  useCreateFixedDepositMutation,
+  useDeleteFixedDepositMutation,
+  useBlockSummariesQuery,
 } from "@/queries/admin";
 import { useToastStore } from "@/store/useToastStore";
 import { useTreasuryStore } from "@/store/useTreasuryStore";
@@ -23,6 +27,7 @@ import { BudgetFormModal } from "./treasury/budget-form-modal";
 import { ExpenseFormModal } from "./treasury/expense-form-modal";
 import { FestivalFormModal } from "./treasury/festival-form-modal";
 import { ExportModal } from "./treasury/export-modal";
+import { FdFormModal } from "./treasury/fd-form-modal";
 import { type CreateBudgetFormData, type CreateExpenseFormData, type CreateFestivalFormData } from "@/lib/form-schemas";
 
 export function TreasuryView() {
@@ -30,12 +35,16 @@ export function TreasuryView() {
   const { data: expenses = [], isLoading: expensesLoading, refetch: refetchExpenses } = useExpensesQuery();
   const { data: festivals = [], isLoading: festivalsLoading, refetch: refetchFestivals } = useFestivalsQuery();
   const { data: duesData, isLoading: duesLoading, refetch: refetchDues } = useAdminDuesQuery();
+  const { data: fds = [], isLoading: fdsLoading, refetch: refetchFds } = useFixedDepositsQuery();
+  const { data: blockSummaries = [], isLoading: blocksLoading, refetch: refetchBlocks } = useBlockSummariesQuery();
 
   const dues = duesData?.data || [];
 
   const createBudgetMutation = useCreateBudgetMutation();
   const createExpenseMutation = useCreateExpenseMutation();
   const createFestivalMutation = useCreateFestivalMutation();
+  const createFdMutation = useCreateFixedDepositMutation();
+  const deleteFdMutation = useDeleteFixedDepositMutation();
 
   const { showToast } = useToastStore();
   const colorScheme = useColorScheme();
@@ -47,6 +56,7 @@ export function TreasuryView() {
   const [budgetModalVisible, setBudgetModalVisible] = useState(false);
   const [expenseModalVisible, setExpenseModalVisible] = useState(false);
   const [festivalModalVisible, setFestivalModalVisible] = useState(false);
+  const [fdModalVisible, setFdModalVisible] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -54,11 +64,18 @@ export function TreasuryView() {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([refetchBudgets(), refetchExpenses(), refetchFestivals(), refetchDues()]);
+      await Promise.all([
+        refetchBudgets(),
+        refetchExpenses(),
+        refetchFestivals(),
+        refetchDues(),
+        refetchFds(),
+        refetchBlocks(),
+      ]);
     } finally {
       setRefreshing(false);
     }
-  }, [refetchBudgets, refetchExpenses, refetchFestivals, refetchDues]);
+  }, [refetchBudgets, refetchExpenses, refetchFestivals, refetchDues, refetchFds, refetchBlocks]);
 
   const handleCreateBudget = async (data: CreateBudgetFormData) => {
     try {
@@ -114,6 +131,39 @@ export function TreasuryView() {
     }
   };
 
+  const handleCreateFd = async (data: {
+    bankName: string;
+    amount: string;
+    interestRate?: string;
+    startDate: string;
+    maturityDate?: string;
+  }) => {
+    try {
+      await createFdMutation.mutateAsync({
+        bankName: data.bankName,
+        amount: parseFloat(data.amount),
+        interestRate: data.interestRate ? parseFloat(data.interestRate) : undefined,
+        startDate: data.startDate,
+        maturityDate: data.maturityDate,
+      });
+      showToast("Fixed Deposit registered successfully", "success");
+      setFdModalVisible(false);
+      refetchFds();
+    } catch (err: any) {
+      showToast(err.message || "Failed to create Fixed Deposit", "error");
+    }
+  };
+
+  const handleDeleteFd = async (id: string) => {
+    try {
+      await deleteFdMutation.mutateAsync(id);
+      showToast("Fixed Deposit liquidated successfully", "success");
+      refetchFds();
+    } catch (err: any) {
+      showToast(err.message || "Failed to liquidate Fixed Deposit", "error");
+    }
+  };
+
   const handleTriggerExport = async (config: {
     format: "pdf" | "csv";
     scope: "all" | "expenses" | "budgets";
@@ -128,7 +178,7 @@ export function TreasuryView() {
     }
     setIsExporting(true);
     try {
-      await exportTreasuryReport(budgets, expenses, festivals, {
+      await exportTreasuryReport(budgets, expenses, festivals, fds, dues, {
         format: config.format,
         scope: config.scope,
         dateRange: config.dateRange,
@@ -145,7 +195,7 @@ export function TreasuryView() {
     }
   };
 
-  if (budgetsLoading || expensesLoading || festivalsLoading || duesLoading) {
+  if (budgetsLoading || expensesLoading || festivalsLoading || duesLoading || fdsLoading || blocksLoading) {
     return <Loader />;
   }
 
@@ -155,17 +205,22 @@ export function TreasuryView() {
   const remainingFunds = totalBudgeted - totalSpent;
 
   // Real Balance Sheet Metrics
-  const paidDues = dues.filter((d: any) => d.status === "PAID");
-  const unpaidDues = dues.filter((d: any) => d.status !== "PAID");
+  const openingDue = dues.find((d: any) => d.month && d.month.includes("Opening Balance"));
+  const openingBalanceAmount = openingDue ? openingDue.amount : 1045966;
 
-  const totalDuesCollected = paidDues.reduce((acc: number, d: any) => acc + d.amount, 0);
-  const totalDuesReceivable = unpaidDues.reduce((acc: number, d: any) => acc + d.amount, 0);
+  const normalPaidDues = dues.filter((d: any) => d.status === "PAID" && !(d.month && d.month.includes("Opening Balance")));
+  const normalUnpaidDues = dues.filter((d: any) => d.status !== "PAID" && !(d.month && d.month.includes("Opening Balance")));
 
-  const retainedSurplus = totalDuesCollected - totalSpent;
+  const totalDuesCollected = normalPaidDues.reduce((acc: number, d: any) => acc + d.amount, 0);
+  const totalDuesReceivable = normalUnpaidDues.reduce((acc: number, d: any) => acc + d.amount, 0);
+
+  const totalFds = fds.reduce((acc: number, f: any) => acc + f.amount, 0);
+  const liquidReserves = (openingBalanceAmount + totalDuesCollected) - totalSpent - totalFds;
+  const totalReserves = liquidReserves + totalFds;
 
   // General Ledger: Chronologically merge Paid Dues (inflow) and Logged Expenses (outflow)
   const generalLedger = [
-    ...paidDues.map((d: any) => ({
+    ...dues.filter((d: any) => d.status === "PAID").map((d: any) => ({
       id: d.id,
       date: d.paidAt || d.updatedAt || d.createdAt,
       title: "Maintenance Collected",
@@ -241,33 +296,34 @@ export function TreasuryView() {
         </Card>
         <Card className="flex-1 bg-amber-500/10 border border-amber-500/25 p-3.5 items-center">
           <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[9px] font-bold uppercase tracking-wider">
-            Net Surplus
+            Total Reserves
           </Text>
-          <Text className={`${retainedSurplus >= 0 ? "text-amber-600 dark:text-amber-500" : "text-rose-500"} font-extrabold text-sm mt-1 font-mono`}>
-            {retainedSurplus < 0 ? "-" : ""}₹{Math.abs(retainedSurplus).toLocaleString()}
+          <Text className={`${totalReserves >= 0 ? "text-amber-600 dark:text-amber-500" : "text-rose-500"} font-extrabold text-sm mt-1 font-mono`}>
+            {totalReserves < 0 ? "-" : ""}₹{Math.abs(totalReserves).toLocaleString()}
           </Text>
         </Card>
       </View>
 
       {/* Tabs */}
-      <View className="flex-row bg-muted-light dark:bg-muted-dark p-1 rounded-xl mb-6">
-        {(["balance-sheet", "overview", "expenses", "festivals"] as const).map((tab) => {
+      <View className="flex-row bg-muted-light dark:bg-muted-dark p-1 rounded-xl mb-6 flex-wrap gap-y-1">
+        {(["balance-sheet", "blocks", "fds", "overview", "expenses"] as const).map((tab) => {
           const isSelected = activeTab === tab;
           const displayNames = {
             "balance-sheet": "Balance Sheet",
-            "overview": "Budgets Dept",
+            "blocks": "Block Income",
+            "fds": "Fixed Deposits",
+            "overview": "Budgets",
             "expenses": "Expenses",
-            "festivals": "Festivals",
           };
           return (
             <Pressable
               key={tab}
               onPress={() => setActiveTab(tab)}
-              className={`flex-1 py-2.5 px-3 rounded-lg items-center ${isSelected ? "bg-card-light dark:bg-card-dark shadow-sm" : ""}`}
+              className={`flex-1 py-2.5 px-1.5 rounded-lg items-center ${isSelected ? "bg-card-light dark:bg-card-dark shadow-sm" : ""}`}
               accessibilityRole="tab"
               accessibilityState={{ selected: isSelected }}
             >
-              <Text className={`text-xs font-extrabold ${isSelected ? "text-primary-light dark:text-primary-dark" : "text-muted-foreground-light dark:text-muted-foreground-dark"}`}>
+              <Text className={`text-[10px] font-extrabold text-center ${isSelected ? "text-primary-light dark:text-primary-dark" : "text-muted-foreground-light dark:text-muted-foreground-dark"}`} numberOfLines={1}>
                 {displayNames[tab]}
               </Text>
             </Pressable>
@@ -280,54 +336,113 @@ export function TreasuryView() {
         <View className="gap-6">
           {/* Balance Sheet Statement */}
           <Card className="border border-border-light dark:border-border-dark p-5 bg-card-light dark:bg-card-dark gap-4">
-            <Text className="text-foreground-light dark:text-white font-extrabold text-sm uppercase tracking-wider border-b border-border-light/60 dark:border-border-dark/60 pb-2">
-              Statement of Financial Position
-            </Text>
-
-            {/* Inflows/Assets */}
-            <View className="gap-2.5">
-              <Text className="text-muted-foreground-light dark:text-zinc-400 text-xxs font-bold uppercase tracking-wider">
-                Sources of Funds (Cash Inflow)
-              </Text>
-              <View className="flex-row justify-between text-xs font-semibold">
-                <Text className="text-foreground-light dark:text-zinc-300">Maintenance Collections</Text>
-                <Text className="text-foreground-light dark:text-white font-mono">₹{totalDuesCollected.toLocaleString()}</Text>
-              </View>
-              <View className="flex-row justify-between text-xs font-semibold">
-                <Text className="text-foreground-light dark:text-zinc-300">Outstanding Receivables (Unpaid)</Text>
-                <Text className="text-muted-foreground-light dark:text-zinc-500 font-mono">₹{totalDuesReceivable.toLocaleString()}</Text>
-              </View>
-            </View>
-
-            {/* Outflows/Liabilities */}
-            <View className="gap-2.5 border-t border-border-light/40 dark:border-border-dark/40 pt-3">
-              <Text className="text-muted-foreground-light dark:text-zinc-400 text-xxs font-bold uppercase tracking-wider">
-                Application of Funds (Cash Outflow)
-              </Text>
-              <View className="flex-row justify-between text-xs font-semibold">
-                <Text className="text-foreground-light dark:text-zinc-300">Logged Departmental Expenses</Text>
-                <Text className="text-rose-500 font-mono">₹{totalSpent.toLocaleString()}</Text>
-              </View>
-              <View className="flex-row justify-between text-xs font-semibold">
-                <Text className="text-foreground-light dark:text-zinc-300">Earmarked Dept Budgets (Allocated)</Text>
-                <Text className="text-foreground-light dark:text-white font-mono">₹{totalBudgeted.toLocaleString()}</Text>
-              </View>
-              <View className="flex-row justify-between text-xs font-semibold">
-                <Text className="text-foreground-light dark:text-zinc-300">Budget Overrun / Variance</Text>
-                <Text className={`${remainingFunds >= 0 ? "text-emerald-500" : "text-rose-500"} font-mono`}>
-                  {remainingFunds >= 0 ? "+" : ""}₹{remainingFunds.toLocaleString()}
+            <View className="flex-row justify-between items-center border-b border-border-light/60 dark:border-border-dark/60 pb-2">
+              <View className="flex-1 pr-2">
+                <Text className="text-foreground-light dark:text-white font-extrabold text-xs uppercase tracking-wider" numberOfLines={1}>
+                  Statement of Financial Position
+                </Text>
+                <Text className="text-[9px] text-muted-foreground-light dark:text-zinc-500 font-bold uppercase tracking-wide mt-0.5" numberOfLines={1}>
+                  General Trial Balance (FY 2025-2026)
                 </Text>
               </View>
+              <View className="bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg flex-shrink-0">
+                <Text className="text-amber-700 dark:text-amber-500 text-[8px] font-extrabold uppercase">Balanced Ledger</Text>
+              </View>
             </View>
 
-            {/* Total Balance */}
-            <View className="flex-row justify-between border-t border-border-light/60 dark:border-border-dark/60 pt-3.5 mt-1 font-bold">
-              <Text className="text-foreground-light dark:text-white text-xs font-extrabold uppercase tracking-wider">
-                Net Retained Reserves
-              </Text>
-              <Text className={`${retainedSurplus >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500"} text-sm font-black font-mono`}>
-                {retainedSurplus < 0 ? "-" : ""}₹{Math.abs(retainedSurplus).toLocaleString()}
-              </Text>
+            {/* Inflow & Outflow T-Ledger Grid */}
+            <View className="flex-row gap-3">
+              {/* Left Column: Inflows (Receipts) */}
+              <View className="flex-1 bg-emerald-500/5 dark:bg-emerald-500/10 p-3.5 rounded-2xl border border-emerald-500/15 justify-between">
+                <View className="space-y-4">
+                  <Text className="text-emerald-700 dark:text-emerald-400 font-black text-[10px] uppercase tracking-wider border-b border-emerald-500/20 pb-2 mb-3">
+                    RECEIPTS
+                  </Text>
+                  
+                  <View className="mb-3.5">
+                    <Text className="text-[10px] font-bold text-foreground-light dark:text-zinc-300">
+                      Opening Balance
+                    </Text>
+                    <Text className="text-[9px] text-muted-foreground-light dark:text-zinc-500 font-semibold mt-0.5">
+                      Cash: ₹2,900 • Bank: ₹10,43,066
+                    </Text>
+                    <Text className="text-xs font-black font-mono text-foreground-light dark:text-white mt-1">
+                      ₹1,045,966
+                    </Text>
+                  </View>
+
+                  <View className="border-t border-emerald-500/10 pt-3.5">
+                    <Text className="text-[10px] font-bold text-foreground-light dark:text-zinc-300">
+                      Maintenance Deposits
+                    </Text>
+                    <Text className="text-[9px] text-muted-foreground-light dark:text-zinc-500 font-semibold mt-0.5">
+                      Towers Block B-J & Shops
+                    </Text>
+                    <Text className="text-xs font-black font-mono text-emerald-600 dark:text-emerald-400 mt-1">
+                      ₹{totalDuesCollected.toLocaleString()}
+                    </Text>
+                  </View>
+                </View>
+
+                <View className="border-t border-emerald-500/20 pt-4 flex-row justify-between items-center mt-6">
+                  <Text className="text-[9px] font-black text-emerald-800 dark:text-emerald-400 uppercase">Total Inflow</Text>
+                  <Text className="text-xs font-black font-mono text-emerald-800 dark:text-emerald-400">
+                    ₹{(1045966 + totalDuesCollected).toLocaleString()}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Right Column: Outflows (Payments & Reserves) */}
+              <View className="flex-1 bg-zinc-500/5 dark:bg-zinc-800/10 p-3.5 rounded-2xl border border-border-light dark:border-zinc-800/60 justify-between">
+                <View className="space-y-4">
+                  <Text className="text-foreground-light dark:text-white font-black text-[10px] uppercase tracking-wider border-b border-border-light/20 dark:border-zinc-800 pb-2 mb-3">
+                    PAYMENTS
+                  </Text>
+
+                  <View className="mb-3.5">
+                    <Text className="text-[10px] font-bold text-foreground-light dark:text-zinc-300">
+                      FD Placement
+                    </Text>
+                    <Text className="text-[9px] text-muted-foreground-light dark:text-zinc-500 font-semibold mt-0.5">
+                      Reserves at KDCC Bank
+                    </Text>
+                    <Text className="text-xs font-black font-mono text-foreground-light dark:text-white mt-1">
+                      ₹{totalFds.toLocaleString()}
+                    </Text>
+                  </View>
+
+                  <View className="border-t border-border-light/40 dark:border-zinc-800/60 pt-3.5">
+                    <Text className="text-[10px] font-bold text-foreground-light dark:text-zinc-300">
+                      Operating Expenses
+                    </Text>
+                    <Text className="text-[9px] text-muted-foreground-light dark:text-zinc-500 font-semibold mt-0.5">
+                      Watchman, electricity, repairs
+                    </Text>
+                    <Text className="text-xs font-black font-mono text-rose-500 mt-1">
+                      ₹{totalSpent.toLocaleString()}
+                    </Text>
+                  </View>
+
+                  <View className="border-t border-border-light/40 dark:border-zinc-800/60 pt-3.5">
+                    <Text className="text-[10px] font-bold text-foreground-light dark:text-zinc-300">
+                      Closing Balance
+                    </Text>
+                    <Text className="text-[9px] text-muted-foreground-light dark:text-zinc-500 font-semibold mt-0.5">
+                      Cash: ₹1,653 • Bank: ₹{((1045966 + totalDuesCollected) - totalSpent - totalFds - 1653).toLocaleString()}
+                    </Text>
+                    <Text className="text-xs font-black font-mono text-foreground-light dark:text-white mt-1">
+                      ₹{((1045966 + totalDuesCollected) - totalSpent - totalFds).toLocaleString()}
+                    </Text>
+                  </View>
+                </View>
+
+                <View className="border-t border-border-light/60 dark:border-zinc-800 pt-4 flex-row justify-between items-center mt-6">
+                  <Text className="text-[9px] font-black text-foreground-light dark:text-white uppercase">Total Outflow</Text>
+                  <Text className="text-xs font-black font-mono text-foreground-light dark:text-white">
+                    ₹{(1045966 + totalDuesCollected).toLocaleString()}
+                  </Text>
+                </View>
+              </View>
             </View>
           </Card>
 
@@ -394,6 +509,99 @@ export function TreasuryView() {
               })
             )}
           </View>
+        </View>
+      )}
+
+      {/* Tab Panel: Block Income (Radhekrishan Park Page 2) */}
+      {activeTab === "blocks" && (
+        <View className="gap-5">
+          <SectionHeader title="Block-wise Maintenance Collections" />
+          {blockSummaries.length === 0 ? (
+            <Card className="items-center py-10">
+              <Ionicons name="business-outline" size={32} color="#78716c" />
+              <Text className="text-muted-foreground-light dark:text-zinc-400 text-xs mt-3">No block collections recorded yet</Text>
+            </Card>
+          ) : (
+            <Card className="p-0 border border-border-light dark:border-border-dark overflow-hidden">
+              <View className="flex-row bg-muted-light dark:bg-zinc-800 px-4 py-3 border-b border-border-light dark:border-zinc-700">
+                <Text className="flex-1 text-xxs font-extrabold uppercase tracking-wider text-muted-foreground-light dark:text-zinc-400">Block / Shop Name</Text>
+                <Text className="text-xxs font-extrabold uppercase tracking-wider text-muted-foreground-light dark:text-zinc-400 text-right font-mono">Amount Collected</Text>
+              </View>
+              {blockSummaries.map((b: any, index: number) => (
+                <View key={b.blockName} className={`flex-row px-4 py-3.5 items-center border-b border-border-light/40 dark:border-zinc-800/40 ${index % 2 === 1 ? "bg-muted-light/10 dark:bg-zinc-800/10" : ""}`}>
+                  <Text className="flex-1 text-foreground-light dark:text-white text-xs font-bold">{b.blockName}</Text>
+                  <Text className="text-emerald-600 dark:text-emerald-400 font-extrabold text-xs font-mono">₹{b.amount.toLocaleString()}</Text>
+                </View>
+              ))}
+              <View className="flex-row bg-emerald-500/5 px-4 py-4 items-center">
+                <Text className="flex-1 text-emerald-800 dark:text-emerald-500 text-xs font-black uppercase tracking-wider">Total Collection</Text>
+                <Text className="text-emerald-800 dark:text-emerald-500 font-black text-sm font-mono">₹{totalDuesCollected.toLocaleString()}</Text>
+              </View>
+            </Card>
+          )}
+        </View>
+      )}
+
+      {/* Tab Panel: Fixed Deposits (Radhekrishan Park Page 3) */}
+      {activeTab === "fds" && (
+        <View className="gap-5">
+          <SectionHeader
+            title="Fixed Deposit Ledger"
+            rightElement={
+              <Pressable
+                onPress={() => setFdModalVisible(true)}
+                className="bg-primary-light/10 dark:bg-primary-dark/10 px-3 py-1.5 rounded-lg flex-row items-center gap-1 active:opacity-75"
+                accessibilityRole="button"
+                accessibilityLabel="Log new FD asset"
+              >
+                <Ionicons name="add" size={14} color={primaryColor} />
+                <Text className="text-primary-light dark:text-primary-dark text-xs font-bold">Log FD Asset</Text>
+              </Pressable>
+            }
+          />
+
+          <Card className="bg-amber-500/10 border border-amber-500/25 p-4 flex-row justify-between items-center mb-1">
+            <View>
+              <Text className="text-amber-800 dark:text-amber-500 text-[10px] font-bold uppercase tracking-wider">Total FD Investments</Text>
+              <Text className="text-amber-800 dark:text-amber-500 font-black text-lg mt-1 font-mono">₹{totalFds.toLocaleString()}</Text>
+            </View>
+            <Ionicons name="server-outline" size={28} color={primaryColor} />
+          </Card>
+
+          {fds.length === 0 ? (
+            <Card className="items-center py-10">
+              <Ionicons name="folder-open-outline" size={32} color="#78716c" />
+              <Text className="text-muted-foreground-light dark:text-zinc-400 text-xs mt-3">No Fixed Deposits registered yet</Text>
+            </Card>
+          ) : (
+            fds.map((f: any) => (
+              <Card key={f.id} className="flex-row items-center justify-between border border-border-light dark:border-border-dark py-4">
+                <View className="flex-1 pr-3">
+                  <Text className="text-foreground-light dark:text-white font-extrabold text-sm">{f.bankName}</Text>
+                  <Text className="text-muted-foreground-light dark:text-zinc-400 text-xxs mt-1 font-mono">
+                    Opened: {new Date(f.startDate).toLocaleDateString()}
+                    {f.maturityDate ? ` • Matures: ${new Date(f.maturityDate).toLocaleDateString()}` : ""}
+                  </Text>
+                  {f.interestRate ? (
+                    <View className="bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded mt-2 rounded-lg self-start">
+                      <Text className="text-amber-700 dark:text-amber-500 text-[10px] font-bold font-mono">Rate: {f.interestRate}% p.a.</Text>
+                    </View>
+                  ) : null}
+                </View>
+                <View className="flex-row items-center gap-4">
+                  <Text className="text-foreground-light dark:text-white font-black text-sm font-mono">₹{f.amount.toLocaleString()}</Text>
+                  <Pressable
+                    onPress={() => handleDeleteFd(f.id)}
+                    className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 active:opacity-75"
+                    accessibilityRole="button"
+                    accessibilityLabel="Liquidate Fixed Deposit"
+                  >
+                    <Ionicons name="trash-outline" size={14} color="#ef4444" />
+                  </Pressable>
+                </View>
+              </Card>
+            ))
+          )}
         </View>
       )}
 
@@ -526,67 +734,6 @@ export function TreasuryView() {
         </View>
       )}
 
-      {/* Tab Panel 4: Festivals list */}
-      {activeTab === "festivals" && (
-        <View className="gap-5">
-          <SectionHeader
-            title="Festival Plans"
-            rightElement={
-              <Pressable
-                onPress={() => setFestivalModalVisible(true)}
-                className="bg-primary-light/10 dark:bg-primary-dark/10 px-3 py-1.5 rounded-lg flex-row items-center gap-1 active:opacity-75"
-                accessibilityRole="button"
-                accessibilityLabel="Plan new festival"
-              >
-                <Ionicons name="add" size={14} color={primaryColor} />
-                <Text className="text-primary-light dark:text-primary-dark text-xs font-bold">Plan Festival</Text>
-              </Pressable>
-            }
-          />
-
-          {festivals.length === 0 ? (
-            <Card className="items-center py-10">
-              <Ionicons name="calendar-outline" size={32} color="#78716c" />
-              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs mt-3">No festivals planned yet</Text>
-            </Card>
-          ) : (
-            festivals.map((f: any) => (
-              <Card key={f.id} className="gap-3">
-                <View className="flex-row justify-between items-center">
-                  <View>
-                    <Text className="text-foreground-light dark:text-foreground-dark font-bold text-sm">
-                      {f.name}
-                    </Text>
-                    <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs mt-0.5">
-                      Date: {new Date(f.date).toLocaleDateString()}
-                    </Text>
-                  </View>
-                  <Ionicons name="sparkles-outline" size={18} color="#eab308" />
-                </View>
-
-                {f.description ? (
-                  <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs bg-muted-light/30 dark:bg-muted-dark/30 p-2.5 rounded-xl border border-border-light/40 dark:border-border-dark/40">
-                    {f.description}
-                  </Text>
-                ) : null}
-
-                {f.budget ? (
-                  <View className="flex-row justify-between items-center bg-amber-500/10 border border-amber-500/20 px-3 py-2 rounded-xl">
-                    <Text className="text-primary-light dark:text-primary-dark text-xs font-semibold">Allocated Budget</Text>
-                    <Text className="text-foreground-light dark:text-foreground-dark font-extrabold text-xs font-mono">
-                      ₹{f.budget.allocatedAmount.toLocaleString()} (Spent: ₹{f.budget.spentAmount.toLocaleString()})
-                    </Text>
-                  </View>
-                ) : (
-                  <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs italic">
-                    No budget linked to this festival
-                  </Text>
-                )}
-              </Card>
-            ))
-          )}
-        </View>
-      )}
 
       {/* Form Modals */}
       <BudgetFormModal
@@ -616,6 +763,12 @@ export function TreasuryView() {
         onClose={() => setShowExportModal(false)}
         onExport={handleTriggerExport}
         isExporting={isExporting}
+      />
+
+      <FdFormModal
+        visible={fdModalVisible}
+        onClose={() => setFdModalVisible(false)}
+        onSubmit={handleCreateFd}
       />
     </ScreenContainer>
   );

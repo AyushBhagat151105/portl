@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useCallback, useState } from "react";
 import { ScrollView, Text, View, Pressable, ActivityIndicator, useColorScheme, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Chip } from "heroui-native";
+import { useFocusEffect } from "expo-router";
 import {
   useNoticesQuery,
   usePollsQuery,
@@ -19,10 +20,40 @@ import { Loader } from "../ui/loader";
 import { NoticeCard } from "./notices/notice-card";
 
 export function ResidentDashboardView() {
+  const { data: notices, isLoading: noticesLoading, refetch: refetchNotices } = useNoticesQuery();
+  const { data: polls, isLoading: pollsLoading, refetch: refetchPolls } = usePollsQuery();
+  const { data: pendingCalls, isLoading: callsLoading, refetch: refetchPendingCalls } = usePendingGateCallsQuery();
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Auto refetch data when the screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      refetchNotices();
+      refetchPolls();
+      refetchPendingCalls();
+    }, [refetchNotices, refetchPolls, refetchPendingCalls])
+  );
+
+  // Manual refresh pull down handler
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([
+      refetchNotices(),
+      refetchPolls(),
+      refetchPendingCalls(),
+    ]);
+    setRefreshing(false);
+  }, [refetchNotices, refetchPolls, refetchPendingCalls]);
+
   return (
-    <ScreenContainer contentContainerStyle={{ padding: 24, paddingBottom: 40 }}>
+    <ScreenContainer
+      contentContainerStyle={{ padding: 24, paddingBottom: 40 }}
+      onRefresh={handleRefresh}
+      refreshing={refreshing}
+    >
       {/* Active Gate Calls (Overlay Alerts at top) */}
-      <GateCallsSection />
+      <GateCallsSection pendingCalls={pendingCalls} isLoading={callsLoading} />
 
       {/* Notices Board Section */}
       <View className="mb-8">
@@ -32,7 +63,7 @@ export function ResidentDashboardView() {
             Notice Board
           </Text>
         </View>
-        <NoticesList />
+        <NoticesList notices={notices} isLoading={noticesLoading} />
       </View>
 
       {/* Community Polls Section */}
@@ -43,14 +74,13 @@ export function ResidentDashboardView() {
             Active Polls
           </Text>
         </View>
-        <PollsList />
+        <PollsList polls={polls} isLoading={pollsLoading} />
       </View>
     </ScreenContainer>
   );
 }
 
-function GateCallsSection() {
-  const { data: pendingCalls, isLoading } = usePendingGateCallsQuery();
+function GateCallsSection({ pendingCalls, isLoading }: { pendingCalls: any[] | undefined; isLoading: boolean }) {
   const respondMutation = useRespondVisitorMutation();
   const colorScheme = useColorScheme();
 
@@ -115,8 +145,7 @@ function GateCallsSection() {
   );
 }
 
-function NoticesList() {
-  const { data: notices, isLoading } = useNoticesQuery();
+function NoticesList({ notices, isLoading }: { notices: any[] | undefined; isLoading: boolean }) {
   const colorScheme = useColorScheme();
   const primaryColor = colorScheme === "dark" ? "#f97316" : "#b45309";
   const deleteMutation = useDeleteNoticeMutation();
@@ -155,8 +184,7 @@ function NoticesList() {
   ));
 }
 
-function PollsList() {
-  const { data: polls, isLoading } = usePollsQuery();
+function PollsList({ polls, isLoading }: { polls: any[] | undefined; isLoading: boolean }) {
   const voteMutation = useVotePollMutation();
   const closeMutation = useClosePollMutation();
   const { currentRole } = useSocietyStore();

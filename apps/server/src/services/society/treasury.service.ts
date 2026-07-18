@@ -147,4 +147,38 @@ export class TreasuryService {
       });
     });
   }
+
+  // Report Operations
+  static async getBlockCollectionSummaries(societyId: string) {
+    const dues = await prisma.maintenanceDue.findMany({
+      where: {
+        organizationId: societyId,
+        status: "PAID",
+      },
+      include: {
+        flat: {
+          include: {
+            tower: true,
+          },
+        },
+      },
+    });
+
+    // Group and sum by tower (Block) name
+    const summaries: Record<string, number> = {};
+
+    dues.forEach((due) => {
+      if (due.flat?.tower) {
+        const towerName = due.flat.tower.name;
+        summaries[towerName] = (summaries[towerName] || 0) + due.amount;
+      }
+    });
+
+    return Object.keys(summaries)
+      .map((blockName) => ({
+        blockName,
+        amount: summaries[blockName],
+      }))
+      .sort((a, b) => a.blockName.localeCompare(b.blockName));
+  }
 }

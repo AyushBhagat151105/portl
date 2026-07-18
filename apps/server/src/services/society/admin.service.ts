@@ -136,6 +136,7 @@ export class AdminSocietyService {
         body,
         type: "NOTICE",
         data: JSON.stringify({ noticeId: notice.id }),
+        imageUrl: data.banner || null,
       }));
 
       await prisma.notification.createMany({
@@ -143,7 +144,7 @@ export class AdminSocietyService {
       });
 
       const userIds = members.map((m) => m.userId);
-      await QueueService.pushNotificationJobsBulk(userIds, title, body, "NOTICE");
+      await QueueService.pushNotificationJobsBulk(userIds, title, body, "NOTICE", data.banner || null);
     }
 
     return notice;

@@ -37,14 +37,27 @@ export default function Index() {
       }
 
       // Wire push notification token registration
+      console.log("🔔 [Index] Membership loaded. Initializing push notification registration...");
       import("@/lib/notifications")
         .then(({ registerForPushNotificationsAsync }) => registerForPushNotificationsAsync())
         .then((token) => {
           if (token) {
-            registerPushTokenMutation.mutate(token);
+            console.log("🔔 [Index] Push token retrieved:", token, "- calling register mutation...");
+            registerPushTokenMutation.mutate(token, {
+              onSuccess: () => {
+                console.log("🔔 [Index] Push token successfully registered on server!");
+              },
+              onError: (err) => {
+                console.error("🔔 [Index] Server push token registration failed:", err);
+              }
+            });
+          } else {
+            console.log("🔔 [Index] No push token retrieved (null). Mutation skipped.");
           }
         })
-        .catch(console.warn);
+        .catch((err) => {
+          console.error("🔔 [Index] Failed to initialize notifications module:", err);
+        });
     }
   }, [membership]);
 

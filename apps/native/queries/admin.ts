@@ -465,3 +465,58 @@ export function useDeleteStaffAadharMutation() {
   });
 }
 
+// 23. Fixed Deposits Query & Mutations
+export function useFixedDepositsQuery() {
+  return useQuery({
+    queryKey: queryKeys.treasury.fds(),
+    queryFn: async () => {
+      const res = await api.get("/api/society/admin/treasury/fds");
+      return res.data?.data ?? [];
+    },
+  });
+}
+
+export function useCreateFixedDepositMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      bankName: string;
+      amount: number;
+      interestRate?: number;
+      startDate: string;
+      maturityDate?: string;
+    }) => {
+      const res = await api.post("/api/society/admin/treasury/fds", data);
+      return res.data?.data;
+    },
+    onSuccess: () => {
+      return queryClient.invalidateQueries({ queryKey: ["treasury"] });
+    },
+  });
+}
+
+export function useDeleteFixedDepositMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.delete(`/api/society/admin/treasury/fds/${id}`);
+      return res.data?.data;
+    },
+    onSuccess: () => {
+      return queryClient.invalidateQueries({ queryKey: ["treasury"] });
+    },
+  });
+}
+
+// 24. Block Summaries Query
+export function useBlockSummariesQuery() {
+  return useQuery({
+    queryKey: queryKeys.treasury.blockSummaries(),
+    queryFn: async () => {
+      const res = await api.get("/api/society/admin/treasury/reports/blocks");
+      return res.data?.data ?? [];
+    },
+  });
+}
+
+

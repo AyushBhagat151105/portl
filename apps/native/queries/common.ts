@@ -15,14 +15,15 @@ export function useNoticesQuery() {
 }
 
 // 2. Polls list board lookup
-export function usePollsQuery() {
+export function usePollsQuery(options?: { refetchInterval?: number }) {
   return useQuery({
     queryKey: queryKeys.polls(),
     queryFn: async () => {
       const res = await api.get("/api/society/polls");
       return res.data?.data ?? [];
     },
-    staleTime: 1000 * 30, // 30s — vote counts change as members vote
+    staleTime: options?.refetchInterval ? 0 : 1000 * 30, // 30s — vote counts change as members vote
+    ...options,
   });
 }
 

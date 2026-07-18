@@ -103,6 +103,7 @@ model Organization {
   expenses       Expense[]
   festivals      Festival[]
   vehicles       Vehicle[]
+  fixedDeposits  FixedDeposit[]
   razorpayKeyId  String?
   razorpayKeySecret String?
 

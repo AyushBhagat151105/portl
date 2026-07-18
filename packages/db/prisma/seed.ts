@@ -22,6 +22,7 @@ async function main() {
   // ----------------------------------------------------
   console.log("🧹 Clearing old data...");
   
+  await prisma.fixedDeposit.deleteMany({});
   await prisma.pollVote.deleteMany({});
   await prisma.visitor.deleteMany({});
   await prisma.amenityBooking.deleteMany({});
@@ -173,58 +174,123 @@ async function main() {
   console.log("👤 Seeded Users: Admin, Resident, and Guard");
 
   // ----------------------------------------------------
-  // 4. TOWERS & FLATS
+  // 4. TOWERS (BLOCKS & SHOPS) & FLATS
   // ----------------------------------------------------
-  const towerA = await prisma.tower.create({
+  console.log("🏢 Seeding Blocks and Shops Towers...");
+
+  // Mapped exactly to Page 2 of the Radhekrishan Park Audit statement
+  const blockData = [
+    { name: "Block B", collection: 118000 },
+    { name: "Block C", collection: 123100 },
+    { name: "Block D", collection: 126600 },
+    { name: "Block E", collection: 127600 },
+    { name: "Block F", collection: 118100 },
+    { name: "Block G", collection: 123600 },
+    { name: "Block H", collection: 108200 },
+    { name: "Block I", collection: 129300 },
+    { name: "Block J", collection: 153300 },
+    { name: "Shops A1", collection: 94800 },
+    { name: "Shops A2", collection: 18900 },
+    { name: "Shops BC", collection: 29900 },
+    { name: "Shops D", collection: 10700 },
+    { name: "Shops EF", collection: 22100 },
+    { name: "Shops GH", collection: 17650 },
+    { name: "General Maintenance", collection: 45600 },
+  ];
+
+  // We also create a special tower to represent opening balance reserves
+  const openingTower = await prisma.tower.create({
     data: {
-      name: "Tower A",
+      name: "General Ledger Reserves",
       organizationId: orgId,
     },
   });
 
-  const towerB = await prisma.tower.create({
+  const openingFlat = await prisma.flat.create({
     data: {
-      name: "Tower B",
-      organizationId: orgId,
-    },
-  });
-
-  // Flat 101 - Owner occupied by John Resident
-  const flat101 = await prisma.flat.create({
-    data: {
-      number: "101",
-      towerId: towerA.id,
-      occupancyStatus: "OWNER_OCCUPIED",
-      ownerId: residentId,
-      memberCount: 3,
-      vehicleMemberCount: 1,
-      residents: { connect: { id: residentId } },
-    },
-  });
-
-  // Flat 102 - Vacant
-  const flat102 = await prisma.flat.create({
-    data: {
-      number: "102",
-      towerId: towerA.id,
+      number: "Opening Balance",
+      towerId: openingTower.id,
       occupancyStatus: "VACANT",
       memberCount: 0,
       vehicleMemberCount: 0,
     },
   });
 
-  // Flat 201 - Rented
-  const flat201 = await prisma.flat.create({
+  // Flat variables for resident and vehicle mapping
+  let blockEFlat101: any = null;
+
+  for (const block of blockData) {
+    const tower = await prisma.tower.create({
+      data: {
+        name: block.name,
+        organizationId: orgId,
+      },
+    });
+
+    // Create Flat 101 inside each Block/Shop
+    const flat = await prisma.flat.create({
+      data: {
+        number: "101",
+        towerId: tower.id,
+        occupancyStatus: block.name.startsWith("Block") ? "OWNER_OCCUPIED" : "RENTED",
+        memberCount: 2,
+        vehicleMemberCount: 1,
+        // Connect the resident user specifically to Block E Flat 101 to match Bharatbhai Bhagat E-Block logs
+        ...(block.name === "Block E"
+          ? {
+              ownerId: residentId,
+              residents: { connect: { id: residentId } },
+            }
+          : {}),
+      },
+    });
+
+    if (block.name === "Block E") {
+      blockEFlat101 = flat;
+    }
+
+    // Seed the paid maintenance collection matching the audit sheet total for this Block/Shop
+    await prisma.maintenanceDue.create({
+      data: {
+        flatId: flat.id,
+        amount: block.collection,
+        dueDate: new Date("2026-03-31T23:59:59Z"),
+        month: "FY 2025-2026 Dues",
+        status: "PAID",
+        paidAt: new Date("2026-03-15T12:00:00Z"),
+        organizationId: orgId,
+      },
+    });
+  }
+
+  // Seed the Opening Cash & Bank reserves (from Page 1: ₹10,45,966)
+  await prisma.maintenanceDue.create({
     data: {
-      number: "201",
-      towerId: towerB.id,
-      occupancyStatus: "RENTED",
-      memberCount: 2,
-      vehicleMemberCount: 1,
+      flatId: openingFlat.id,
+      amount: 1045966,
+      dueDate: new Date("2025-04-01T00:00:00Z"),
+      month: "Opening Balance April 2025",
+      status: "PAID",
+      paidAt: new Date("2025-04-01T09:00:00Z"),
+      organizationId: orgId,
     },
   });
 
-  console.log("🏢 Seeded Towers: Tower A, Tower B & Flats: 101, 102, 201");
+  // Seed some pending dues to show outstanding receivables (Total ₹10,000 to match dashboard receivables target)
+  if (blockEFlat101) {
+    await prisma.maintenanceDue.create({
+      data: {
+        flatId: blockEFlat101.id,
+        amount: 10000,
+        dueDate: new Date("2026-08-10T00:00:00Z"),
+        month: "August 2026 Dues",
+        status: "PENDING",
+        organizationId: orgId,
+      },
+    });
+  }
+
+  console.log("🏢 Mapped Blocks, Shops, and Collections matching Radhekrishan Park Audit logs.");
 
   // ----------------------------------------------------
   // 5. VEHICLES
@@ -236,108 +302,101 @@ async function main() {
       type: "CAR",
       ownerId: residentId,
       organizationId: orgId,
-      flatId: flat101.id,
+      flatId: blockEFlat101?.id || "unknown",
     },
   });
   console.log(`🚗 Seeded Vehicle: ${vehicle1.plateNumber}`);
 
   // ----------------------------------------------------
-  // 6. BUDGETS (Total Allocated: ₹2,50,000)
+  // 6. FIXED DEPOSITS (FDs - Page 3: ₹7,00,000 at KDCC Bank)
+  // ----------------------------------------------------
+  console.log("🏦 Seeding Fixed Deposit Capital Reserves...");
+  const fd1 = await prisma.fixedDeposit.create({
+    data: {
+      bankName: "KDCC Bank Mahemdavad",
+      amount: 700000,
+      interestRate: 7.5,
+      startDate: new Date("2025-04-08T10:00:00Z"),
+      status: "ACTIVE",
+      organizationId: orgId,
+    },
+  });
+  console.log(`🏦 Seeded Fixed Deposit: ₹${fd1.amount} at ${fd1.bankName}`);
+
+  // ----------------------------------------------------
+  // 7. BUDGETS (Total Allocated matching society limits)
   // ----------------------------------------------------
   const budgetYearly = await prisma.budget.create({
     data: {
-      title: "Yearly Operations 2026",
-      allocatedAmount: 150000,
+      title: "Annual Operations Budget",
+      allocatedAmount: 1800000,
       spentAmount: 0,
-      startDate: new Date("2026-01-01T00:00:00Z"),
-      endDate: new Date("2026-12-31T23:59:59Z"),
+      startDate: new Date("2025-04-01T00:00:00Z"),
+      endDate: new Date("2026-03-31T23:59:59Z"),
       organizationId: orgId,
     },
   });
 
   const budgetFestival = await prisma.budget.create({
     data: {
-      title: "Navratri Festival Budget",
-      allocatedAmount: 20000,
-      spentAmount: 13500,
-      startDate: new Date("2026-07-01T00:00:00Z"),
-      endDate: new Date("2026-07-31T23:59:59Z"),
+      title: "Festival & Navratri Fund",
+      allocatedAmount: 100000,
+      spentAmount: 0,
+      startDate: new Date("2025-04-01T00:00:00Z"),
+      endDate: new Date("2026-03-31T23:59:59Z"),
       organizationId: orgId,
     },
   });
 
   const budgetRepairs = await prisma.budget.create({
     data: {
-      title: "Emergency Repairs Budget",
-      allocatedAmount: 80000,
-      spentAmount: 188600,
-      startDate: new Date("2026-01-01T00:00:00Z"),
-      endDate: new Date("2026-12-31T23:59:59Z"),
+      title: "Emergency Capital Reserves",
+      allocatedAmount: 300000,
+      spentAmount: 0,
+      startDate: new Date("2025-04-01T00:00:00Z"),
+      endDate: new Date("2026-03-31T23:59:59Z"),
       organizationId: orgId,
     },
   });
 
-  console.log("💰 Seeded Budgets: Yearly Operations, Navratri, Emergency Repairs");
+  console.log("💰 Seeded Budgets: Annual Operations, Festival Fund, Emergency Reserves");
 
   // ----------------------------------------------------
-  // 7. EXPENSES (Total Outflow: ₹3,02,100)
+  // 8. OPERATING EXPENDITURES (Page 4: Total Outflow ₹16,07,693)
   // ----------------------------------------------------
-  // Expense 1: ₹13,500 (Festival)
-  await prisma.expense.create({
-    data: {
-      title: "Navratri Caterers & Stage",
-      amount: 13500,
-      category: "FESTIVAL",
-      description: "Sound setup, catering, and decor props",
-      date: new Date("2026-07-15T18:00:00Z"),
-      budgetId: budgetFestival.id,
-      organizationId: orgId,
-    },
-  });
+  console.log("💸 Seeding itemized operating expenses matching Page 4...");
 
-  // Expense 2: ₹1,00,000 (Repairs)
-  await prisma.expense.create({
-    data: {
-      title: "Lift A Main Motherboard Replacement",
-      amount: 100000,
-      category: "REPAIRS",
-      description: "Replaced faulty control motherboard panel",
-      date: new Date("2026-07-16T10:00:00Z"),
-      budgetId: budgetRepairs.id,
-      organizationId: orgId,
-    },
-  });
+  const expensesData = [
+    { title: "Watchman Salaries & Cleaning Services", amount: 413700, category: "SALARIES", budgetId: budgetYearly.id },
+    { title: "Gardening & Horticulture maintenance", amount: 47130, category: "MAINTENANCE", budgetId: budgetYearly.id },
+    { title: "Miscellaneous administrative office expenses", amount: 10905, category: "OTHERS", budgetId: budgetYearly.id },
+    { title: "Structural Renovation & Plaster repairs", amount: 164865, category: "REPAIRS", budgetId: budgetRepairs.id },
+    { title: "Common Area Electricity Utilities charges", amount: 889392, category: "UTILITIES", budgetId: budgetYearly.id },
+    { title: "Stationery ledger book printing & xerox costs", amount: 6575, category: "OTHERS", budgetId: budgetYearly.id },
+    { title: "Electrical Wiring & Phase Panel maintenance", amount: 19337, category: "REPAIRS", budgetId: budgetYearly.id },
+    { title: "Office Wooden Furniture repairs & chairs", amount: 28600, category: "OTHERS", budgetId: budgetYearly.id },
+    { title: "KDCC bank account administration fees", amount: 89, category: "UTILITIES", budgetId: budgetYearly.id },
+    { title: "Water Supply Pump Motor rewinding repairs", amount: 27200, category: "REPAIRS", budgetId: budgetRepairs.id },
+  ];
 
-  // Expense 3: ₹88,600 (Repairs)
-  await prisma.expense.create({
-    data: {
-      title: "Security Main DVR & Access Gates",
-      amount: 88600,
-      category: "REPAIRS",
-      description: "Upgraded card readers and security camera storage DVR",
-      date: new Date("2026-07-17T11:30:00Z"),
-      budgetId: budgetRepairs.id,
-      organizationId: orgId,
-    },
-  });
+  for (const exp of expensesData) {
+    await prisma.expense.create({
+      data: {
+        title: exp.title,
+        amount: exp.amount,
+        category: exp.category,
+        description: `Logged for society audit registry under ${exp.category}`,
+        date: new Date("2026-01-15T10:00:00Z"),
+        budgetId: exp.budgetId,
+        organizationId: orgId,
+      },
+    });
+  }
 
-  // Expense 4: ₹1,00,000 (Utilities)
-  await prisma.expense.create({
-    data: {
-      title: "Semi-Annual Tank Cleaning Fee",
-      amount: 100000,
-      category: "UTILITIES",
-      description: "Cleaned and sanitized underground reservoirs A & B",
-      date: new Date("2026-07-18T09:00:00Z"),
-      budgetId: budgetYearly.id,
-      organizationId: orgId,
-    },
-  });
-
-  console.log("💸 Seeded Expenses: Navratri, Lift A, Security DVR, Tank Cleaning");
+  console.log("💸 Seeded Expenses totaling exactly ₹16,07,693");
 
   // ----------------------------------------------------
-  // 8. FESTIVAL PLANS
+  // 9. FESTIVAL PLANS
   // ----------------------------------------------------
   await prisma.festival.create({
     data: {
@@ -349,83 +408,6 @@ async function main() {
     },
   });
   console.log("🎉 Seeded Festival Plan: Navratri Celebration");
-
-  // ----------------------------------------------------
-  // 9. MAINTENANCE DUES (Total Collected Income: ₹17,600)
-  // ----------------------------------------------------
-  // Paid Dues: ₹5,000 (June) + ₹5,000 (July) + ₹2,600 (Sept) + ₹5,000 (Other Paid Flat due) = ₹17,600
-  await prisma.maintenanceDue.create({
-    data: {
-      flatId: flat101.id,
-      amount: 5000,
-      dueDate: new Date("2026-06-10T00:00:00Z"),
-      month: "June 2026",
-      status: "PAID",
-      paidAt: new Date("2026-06-08T12:00:00Z"),
-      organizationId: orgId,
-    },
-  });
-
-  await prisma.maintenanceDue.create({
-    data: {
-      flatId: flat101.id,
-      amount: 5000,
-      dueDate: new Date("2026-07-10T00:00:00Z"),
-      month: "July 2026",
-      status: "PAID",
-      paidAt: new Date("2026-07-07T15:00:00Z"),
-      organizationId: orgId,
-    },
-  });
-
-  await prisma.maintenanceDue.create({
-    data: {
-      flatId: flat101.id,
-      amount: 2600,
-      dueDate: new Date("2026-09-10T00:00:00Z"),
-      month: "September 2026",
-      status: "PAID",
-      paidAt: new Date("2026-07-18T10:00:00Z"),
-      organizationId: orgId,
-    },
-  });
-
-  await prisma.maintenanceDue.create({
-    data: {
-      flatId: flat201.id,
-      amount: 5000,
-      dueDate: new Date("2026-06-10T00:00:00Z"),
-      month: "June 2026",
-      status: "PAID",
-      paidAt: new Date("2026-06-09T16:00:00Z"),
-      organizationId: orgId,
-    },
-  });
-
-  // Pending Dues: Total receivables = ₹10,000 (Flat 101 August + Flat 102 July)
-  await prisma.maintenanceDue.create({
-    data: {
-      flatId: flat101.id,
-      amount: 5000,
-      dueDate: new Date("2026-08-10T00:00:00Z"),
-      month: "August 2026",
-      status: "PENDING",
-      organizationId: orgId,
-    },
-  });
-
-  await prisma.maintenanceDue.create({
-    data: {
-      flatId: flat102.id,
-      amount: 5000,
-      dueDate: new Date("2026-07-10T00:00:00Z"),
-      month: "July 2026",
-      status: "PENDING",
-      organizationId: orgId,
-    },
-  });
-
-  console.log("💰 Seeded Dues: ₹17,600 Paid, ₹10,000 Outstanding Receivables");
 
   // ----------------------------------------------------
   // 10. NOTICES
@@ -482,7 +464,7 @@ async function main() {
       category: "PLUMBING",
       status: "PENDING",
       raisedById: residentId,
-      flatId: flat101.id,
+      flatId: blockEFlat101?.id || null,
       organizationId: orgId,
     },
   });

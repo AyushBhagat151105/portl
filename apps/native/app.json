@@ -17,6 +17,7 @@
         "backgroundColor": "#09090b",
         "foregroundImage": "./assets/images/android-icon-foreground.png"
       },
+      "googleServicesFile": "./google-services.json",
       "predictiveBackGestureEnabled": false,
       "package": "com.betterfullstack.portl"
     },

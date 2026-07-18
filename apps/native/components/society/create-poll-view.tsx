@@ -14,7 +14,9 @@ export function CreatePollView() {
   const [activeTab, setActiveTab] = useState<"create" | "manage">("create");
   const pollMutation = useCreatePollMutation();
   const closeMutation = useClosePollMutation();
-  const { data: polls = [], isLoading: pollsLoading, refetch: refetchPolls } = usePollsQuery();
+  const { data: polls = [], isLoading: pollsLoading, refetch: refetchPolls } = usePollsQuery({
+    refetchInterval: activeTab === "manage" ? 3000 : undefined,
+  });
   const { showToast } = useToastStore();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";

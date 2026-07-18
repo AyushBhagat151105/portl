@@ -189,6 +189,21 @@ const expenseSchema = {
   },
 };
 
+const fixedDepositSchema = {
+  type: "object",
+  properties: {
+    id: { type: "string", example: "fd-123" },
+    bankName: { type: "string", example: "KDCC Bank Mahemdavad" },
+    amount: { type: "number", example: 700000 },
+    interestRate: { type: "number", nullable: true, example: 7.5 },
+    startDate: { type: "string", format: "date-time" },
+    maturityDate: { type: "string", format: "date-time", nullable: true },
+    status: { type: "string", example: "ACTIVE" },
+    organizationId: { type: "string" },
+    createdAt: { type: "string" },
+  },
+};
+
 const festivalSchema = {
   type: "object",
   properties: {
@@ -1868,6 +1883,94 @@ export const openapiSpec = {
           "responses": {
             "200": {
               "description": "Razorpay keys updated successfully"
+            }
+          }
+        }
+      },
+      "/api/society/admin/treasury/fds": {
+        "get": {
+          "tags": ["Treasury"],
+          "summary": "Get all Fixed Deposits",
+          "description": "Retrieves the list of Fixed Deposits assets. Requires Admin role.",
+          "responses": {
+            "200": {
+              "description": "Success",
+              "content": {
+                "application/json": {
+                  "schema": makeArrayResponseSchema(fixedDepositSchema)
+                }
+              }
+            }
+          }
+        },
+        "post": {
+          "tags": ["Treasury"],
+          "summary": "Create a Fixed Deposit",
+          "description": "Logs a new Fixed Deposit asset registry. Requires Admin role.",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "bankName": { "type": "string", "example": "KDCC Bank Mahemdavad" },
+                    "amount": { "type": "number", "example": 700000 },
+                    "interestRate": { "type": "number", "example": 7.5 },
+                    "startDate": { "type": "string", "format": "date-time" },
+                    "maturityDate": { "type": "string", "format": "date-time" }
+                  },
+                  "required": ["bankName", "amount", "startDate"]
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Fixed Deposit created successfully",
+              "content": {
+                "application/json": {
+                  "schema": makeResponseSchema(fixedDepositSchema)
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/society/admin/treasury/fds/{id}": {
+        "delete": {
+          "tags": ["Treasury"],
+          "summary": "Delete a Fixed Deposit",
+          "description": "Deletes the target Fixed Deposit asset. Requires Admin role.",
+          "parameters": [
+            { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+          ],
+          "responses": {
+            "200": {
+              "description": "Fixed Deposit deleted successfully"
+            }
+          }
+        }
+      },
+      "/api/society/admin/treasury/reports/blocks": {
+        "get": {
+          "tags": ["Treasury"],
+          "summary": "Get block-wise maintenance collections summary",
+          "description": "Aggregates all paid maintenance collections grouped by flat blocks. Requires Admin role.",
+          "responses": {
+            "200": {
+              "description": "Success",
+              "content": {
+                "application/json": {
+                  "schema": makeArrayResponseSchema({
+                    "type": "object",
+                    "properties": {
+                      "blockName": { "type": "string", "example": "Block B" },
+                      "amount": { "type": "number", "example": 118000 }
+                    }
+                  })
+                }
+              }
             }
           }
         }

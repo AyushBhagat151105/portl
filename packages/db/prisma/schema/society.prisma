@@ -218,6 +218,7 @@ model Notification {
   body      String
   type      String   // e.g. "GATE_CALL", "NOTICE", "COMPLAINT", "AMENITY"
   data      String?  // JSON metadata (e.g. visitorId, complaintId)
+  imageUrl  String?
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
 
@@ -266,6 +267,7 @@ model NotificationJob {
   title          String
   body           String
   type           String      // e.g., "GATE_CALL", "NOTICE", "POLL", "BILLING"
+  imageUrl       String?
   status         JobStatus   @default(PENDING)
   attempts       Int         @default(0)
   errorMessage   String?
@@ -348,6 +350,23 @@ model Festival {
   @@index([budgetId])
   @@index([organizationId])
   @@map("festival")
+}
+
+model FixedDeposit {
+  id              String       @id @default(uuid())
+  bankName        String       // e.g. "KDCC Bank Mahemdavad"
+  amount          Float
+  interestRate    Float?
+  startDate       DateTime
+  maturityDate    DateTime?
+  status          String       @default("ACTIVE") // ACTIVE, MATURED
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@map("fixed_deposit")
 }
 
 

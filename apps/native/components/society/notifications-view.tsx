@@ -1,5 +1,5 @@
 import React from "react";
-import { Text, View, Pressable, useColorScheme } from "react-native";
+import { Text, View, Pressable, useColorScheme, Image } from "react-native";
 import { useNotificationsQuery, useMarkNotificationReadMutation } from "../../queries/society";
 import { ScreenContainer } from "../ui/screen-container";
 import { Card, CardTitle, CardDescription } from "../ui/card";
@@ -44,6 +44,17 @@ export function NotificationsView() {
               <View className="flex-1 pr-2">
                 <CardTitle>{not.title}</CardTitle>
                 <CardDescription>{not.body}</CardDescription>
+
+                {not.imageUrl ? (
+                  <View className="mt-3 rounded-lg overflow-hidden border border-border-light dark:border-border-dark w-full">
+                    <Image
+                      source={{ uri: not.imageUrl }}
+                      style={{ width: "100%", height: 120 }}
+                      resizeMode="cover"
+                    />
+                  </View>
+                ) : null}
+
                 <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xxs mt-2.5">
                   {new Date(not.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })} @{" "}
                   {new Date(not.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
