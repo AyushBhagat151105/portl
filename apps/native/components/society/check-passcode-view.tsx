@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Text, View, Pressable, TextInput, ActivityIndicator } from "react-native";
+import { Text, View, Pressable, TextInput, ActivityIndicator, Platform } from "react-native";
+import * as Haptics from "expo-haptics";
 import { useVerifyPasscodeMutation } from "../../queries/society";
 import { useToastStore } from "../../store/useToastStore";
 import { ScreenContainer } from "../ui/screen-container";
@@ -18,6 +19,9 @@ export function CheckPasscodeView() {
 
     try {
       const visitor = await verifyMutation.mutateAsync(code);
+      if (Platform.OS !== "web") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
       showToast(`Access Approved! Pre-approved guest checked in successfully!`, "success");
       setCode("");
     } catch (err: any) {
@@ -43,7 +47,7 @@ export function CheckPasscodeView() {
             placeholderTextColor="#78716c"
             keyboardType="number-pad"
             maxLength={6}
-            className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl py-4 text-center text-3xl font-extrabold tracking-widest focus:border-primary-light dark:focus:border-primary-dark"
+            className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl py-4 text-center text-3xl font-mono font-bold tracking-widest focus:border-primary-light dark:focus:border-primary-dark"
           />
 
           <Pressable

@@ -1,5 +1,6 @@
 import React from "react";
-import { ScrollView, Text, Pressable, View } from "react-native";
+import { ScrollView, Text, Pressable, View, Platform } from "react-native";
+import * as Haptics from "expo-haptics";
 
 interface DateChipsProps {
   value: string; // ISO date string "YYYY-MM-DD"
@@ -43,7 +44,12 @@ export function DateChips({ value, onChange, daysToShow = 14 }: DateChipsProps) 
         return (
           <Pressable
             key={day.date}
-            onPress={() => onChange(day.date)}
+            onPress={() => {
+              if (Platform.OS !== "web") {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }
+              onChange(day.date);
+            }}
             className={`items-center py-2.5 px-3.5 rounded-xl border min-w-[52px] ${
               isSelected
                 ? "bg-primary-light dark:bg-primary-dark border-primary-light dark:border-primary-dark"

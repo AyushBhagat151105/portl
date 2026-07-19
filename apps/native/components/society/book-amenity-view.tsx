@@ -1,6 +1,7 @@
 import React from "react";
-import { Text, View, Pressable, ActivityIndicator, TextInput } from "react-native";
+import { Text, View, Pressable, ActivityIndicator, TextInput, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FieldError } from "heroui-native";
@@ -36,6 +37,9 @@ export function BookAmenityView() {
         timeslot: data.timeslot,
         purpose: data.purpose,
       });
+      if (Platform.OS !== "web") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
       setBookingAmenityId(null);
       reset();
       showToast("Amenity timeslot requested successfully!", "success");
@@ -157,8 +161,14 @@ export function BookAmenityView() {
                 )}
               </View>
               <Pressable
-                onPress={() => setBookingAmenityId(am.id)}
-                className="bg-primary-light/10 dark:bg-primary-dark/10 border border-primary-light/30 dark:border-primary-dark/30 px-3.5 py-2 rounded-xl active:opacity-85"
+                onPress={() => {
+                  if (Platform.OS !== "web") {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }
+                  setBookingAmenityId(am.id);
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                className="bg-primary-light/10 dark:bg-primary-dark/10 border border-primary-light/30 dark:border-primary-dark/30 px-4 py-2.5 rounded-xl active:opacity-85"
               >
                 <Text className="text-primary-light dark:text-primary-dark text-xs font-semibold">Book Slot</Text>
               </Pressable>

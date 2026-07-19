@@ -1,6 +1,7 @@
 import React from "react";
-import { View, Text, Image, Pressable } from "react-native";
+import { View, Text, Image, Pressable, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { Card } from "../../ui/card";
 
 export type Notice = {
@@ -30,25 +31,31 @@ export function NoticeCard({
   primaryColor,
 }: NoticeCardProps) {
   return (
-    <Card className="overflow-hidden border border-border-light dark:border-border-dark p-0 mb-3 bg-muted-light/10 dark:bg-muted-dark/5">
+    <Card className="overflow-hidden p-0 mb-3">
       {notice.banner && (
         <Image source={{ uri: notice.banner }} className="w-full h-28" />
       )}
       <View className="p-4 gap-2">
         <View className="flex-row justify-between items-start">
-          <Text className="text-foreground-light dark:text-foreground-dark font-extrabold text-sm flex-1 mr-2 leading-snug" numberOfLines={2}>
+          <Text className="text-foreground-light dark:text-foreground-dark font-bold text-sm flex-1 mr-2 leading-snug" numberOfLines={2}>
             {notice.title}
           </Text>
           <View className="flex-row items-center gap-1.5">
             {onDelete && (
               <Pressable
                 disabled={isDeleting}
-                onPress={onDelete}
-                className="w-7 h-7 rounded-full bg-rose-500/10 items-center justify-center active:scale-95 disabled:opacity-50"
+                onPress={() => {
+                  if (Platform.OS !== "web") {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  }
+                  onDelete();
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                className="w-10 h-10 rounded-full bg-rose-500/10 items-center justify-center active:scale-95 disabled:opacity-50"
                 accessibilityRole="button"
                 accessibilityLabel={`Delete announcement: ${notice.title}`}
               >
-                <Ionicons name="trash" size={13} color="#f43f5e" />
+                <Ionicons name="trash" size={14} color="#f43f5e" />
               </Pressable>
             )}
             <Ionicons name="volume-medium-outline" size={16} color={primaryColor} />

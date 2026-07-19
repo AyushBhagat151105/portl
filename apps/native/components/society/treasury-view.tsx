@@ -1,7 +1,8 @@
 import React, { useState, useCallback } from "react";
-import { View, Text, Pressable, ActivityIndicator, ScrollView } from "react-native";
+import { View, Text, Pressable, ActivityIndicator, ScrollView, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useColorScheme } from "react-native";
+import * as Haptics from "expo-haptics";
 import {
   useBudgetsQuery,
   useCreateBudgetMutation,
@@ -51,6 +52,12 @@ export function TreasuryView() {
   const isDark = colorScheme === "dark";
 
   const { activeTab, setActiveTab, ledgerFilter, setLedgerFilter } = useTreasuryStore();
+
+  const triggerLightHaptic = useCallback(() => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  }, []);
 
   // Modal States
   const [budgetModalVisible, setBudgetModalVisible] = useState(false);
@@ -277,58 +284,67 @@ export function TreasuryView() {
       </View>
 
       {/* Real ERP Balance Sheet Summary Cards */}
-      <View className="flex-row gap-3 mb-6">
-        <Card className="flex-1 bg-emerald-500/10 border border-emerald-500/25 p-3.5 items-center">
-          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[9px] font-bold uppercase tracking-wider">
+      <View className="flex-row gap-4 mb-6">
+        <Card className="flex-1 bg-emerald-500/10 border border-emerald-500/25 p-4 items-center">
+          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[10px] font-bold uppercase tracking-wider">
             Total Income
           </Text>
-          <Text className="text-emerald-600 dark:text-emerald-400 font-extrabold text-sm mt-1 font-mono">
+          <Text className="text-emerald-600 dark:text-emerald-400 font-bold text-sm mt-1 font-mono">
             ₹{totalDuesCollected.toLocaleString()}
           </Text>
         </Card>
-        <Card className="flex-1 bg-rose-500/10 border border-rose-500/25 p-3.5 items-center">
-          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[9px] font-bold uppercase tracking-wider">
+        <Card className="flex-1 bg-rose-500/10 border border-rose-500/25 p-4 items-center">
+          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[10px] font-bold uppercase tracking-wider">
             Total Outflow
           </Text>
-          <Text className="text-rose-500 dark:text-rose-400 font-extrabold text-sm mt-1 font-mono">
+          <Text className="text-rose-500 dark:text-rose-400 font-bold text-sm mt-1 font-mono">
             ₹{totalSpent.toLocaleString()}
           </Text>
         </Card>
-        <Card className="flex-1 bg-amber-500/10 border border-amber-500/25 p-3.5 items-center">
-          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[9px] font-bold uppercase tracking-wider">
+        <Card className="flex-1 bg-amber-500/10 border border-amber-500/25 p-4 items-center">
+          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[10px] font-bold uppercase tracking-wider">
             Total Reserves
           </Text>
-          <Text className={`${totalReserves >= 0 ? "text-amber-600 dark:text-amber-500" : "text-rose-500"} font-extrabold text-sm mt-1 font-mono`}>
+          <Text className={`${totalReserves >= 0 ? "text-amber-600 dark:text-amber-500" : "text-rose-500"} font-bold text-sm mt-1 font-mono`}>
             {totalReserves < 0 ? "-" : ""}₹{Math.abs(totalReserves).toLocaleString()}
           </Text>
         </Card>
       </View>
 
       {/* Tabs */}
-      <View className="flex-row bg-muted-light dark:bg-muted-dark p-1 rounded-xl mb-6 flex-wrap gap-y-1">
-        {(["balance-sheet", "blocks", "fds", "overview", "expenses"] as const).map((tab) => {
-          const isSelected = activeTab === tab;
-          const displayNames = {
-            "balance-sheet": "Balance Sheet",
-            "blocks": "Block Income",
-            "fds": "Fixed Deposits",
-            "overview": "Budgets",
-            "expenses": "Expenses",
-          };
-          return (
-            <Pressable
-              key={tab}
-              onPress={() => setActiveTab(tab)}
-              className={`flex-1 py-2.5 px-1.5 rounded-lg items-center ${isSelected ? "bg-card-light dark:bg-card-dark shadow-sm" : ""}`}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: isSelected }}
-            >
-              <Text className={`text-[10px] font-extrabold text-center ${isSelected ? "text-primary-light dark:text-primary-dark" : "text-muted-foreground-light dark:text-muted-foreground-dark"}`} numberOfLines={1}>
-                {displayNames[tab]}
-              </Text>
-            </Pressable>
-          );
-        })}
+      <View className="mb-6 bg-muted-light dark:bg-muted-dark p-1 rounded-xl">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ flexDirection: "row", gap: 4 }}
+        >
+          {(["balance-sheet", "blocks", "fds", "overview", "expenses"] as const).map((tab) => {
+            const isSelected = activeTab === tab;
+            const displayNames = {
+              "balance-sheet": "Balance Sheet",
+              "blocks": "Block Income",
+              "fds": "Fixed Deposits",
+              "overview": "Budgets",
+              "expenses": "Expenses",
+            };
+            return (
+              <Pressable
+                key={tab}
+                onPress={() => {
+                  triggerLightHaptic();
+                  setActiveTab(tab);
+                }}
+                className={`h-11 justify-center items-center px-4 rounded-lg ${isSelected ? "bg-card-light dark:bg-card-dark shadow-sm" : ""}`}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: isSelected }}
+              >
+                <Text className={`text-[10px] font-bold text-center ${isSelected ? "text-primary-light dark:text-primary-dark" : "text-muted-foreground-light dark:text-muted-foreground-dark"}`}>
+                  {displayNames[tab]}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
       </View>
 
       {/* Tab Panel 1: Balance Sheet Statement & General Ledger */}

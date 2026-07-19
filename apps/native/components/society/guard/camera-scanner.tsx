@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, ActivityIndicator } from "react-native";
+import { View, Text, ActivityIndicator, useColorScheme } from "react-native";
 import { CameraView } from "expo-camera";
 
 interface CameraScannerProps {
@@ -9,6 +9,9 @@ interface CameraScannerProps {
 }
 
 export function CameraScanner({ onScan, scanned, isVerifying }: CameraScannerProps) {
+  const colorScheme = useColorScheme();
+  const glowColor = colorScheme === "dark" ? "#f97316" : "#b45309";
+
   const handleBarCodeScanned = ({ data }: { data: string }) => {
     if (scanned || isVerifying) return;
     onScan(data);
@@ -29,7 +32,7 @@ export function CameraScanner({ onScan, scanned, isVerifying }: CameraScannerPro
           className="w-56 h-56 border-2 border-white/40 rounded-3xl"
           style={{
             backgroundColor: "transparent",
-            shadowColor: "#f59e0b",
+            shadowColor: glowColor,
             shadowOpacity: 0.3,
             shadowRadius: 12,
           }}
@@ -41,7 +44,7 @@ export function CameraScanner({ onScan, scanned, isVerifying }: CameraScannerPro
 
       {isVerifying && (
         <View className="absolute inset-0 bg-black/60 items-center justify-center">
-          <ActivityIndicator size="large" color="#f59e0b" />
+          <ActivityIndicator size="large" color={glowColor} />
           <Text className="text-white text-sm font-semibold mt-3">Verifying passcode...</Text>
         </View>
       )}

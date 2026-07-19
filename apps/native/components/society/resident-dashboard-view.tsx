@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from "react";
-import { ScrollView, Text, View, Pressable, ActivityIndicator, useColorScheme, Image } from "react-native";
+import { ScrollView, Text, View, Pressable, ActivityIndicator, useColorScheme, Image, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { Chip } from "heroui-native";
 import { useFocusEffect } from "expo-router";
 import {
@@ -123,18 +124,28 @@ function GateCallsSection({ pendingCalls, isLoading }: { pendingCalls: any[] | u
               </Text>
             </View>
           </View>
-          <View className="flex-row gap-3 mt-1">
+          <View className="flex-row gap-3 mt-2">
             <Pressable
               disabled={respondMutation.isPending}
-              onPress={() => respondMutation.mutate({ visitorId: call.id, status: "APPROVED" })}
-              className="flex-1 bg-emerald-600 rounded-xl py-3 items-center active:opacity-90"
+              onPress={() => {
+                if (Platform.OS !== "web") {
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                }
+                respondMutation.mutate({ visitorId: call.id, status: "APPROVED" });
+              }}
+              className="flex-1 bg-emerald-600 rounded-xl py-3.5 items-center justify-center active:opacity-90"
             >
               <Text className="text-white font-bold text-sm">Approve Entry</Text>
             </Pressable>
             <Pressable
               disabled={respondMutation.isPending}
-              onPress={() => respondMutation.mutate({ visitorId: call.id, status: "REJECTED" })}
-              className="flex-1 bg-rose-600 rounded-xl py-3 items-center active:opacity-90"
+              onPress={() => {
+                if (Platform.OS !== "web") {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                }
+                respondMutation.mutate({ visitorId: call.id, status: "REJECTED" });
+              }}
+              className="flex-1 bg-rose-600 rounded-xl py-3.5 items-center justify-center active:opacity-90"
             >
               <Text className="text-white font-bold text-sm">Deny Entry</Text>
             </Pressable>
@@ -192,6 +203,9 @@ function PollsList({ polls, isLoading }: { polls: any[] | undefined; isLoading: 
   const colorScheme = useColorScheme();
 
   const handleVote = async (pollId: string, optionIndex: number) => {
+    if (Platform.OS !== "web") {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
     try {
       await voteMutation.mutateAsync({ pollId, optionIndex });
       showToast("Your vote has been recorded!", "success");
@@ -201,6 +215,9 @@ function PollsList({ polls, isLoading }: { polls: any[] | undefined; isLoading: 
   };
 
   const handleClosePoll = async (pollId: string) => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
     try {
       await closeMutation.mutateAsync(pollId);
       showToast("Poll closed successfully!", "success");

@@ -66,33 +66,33 @@ export function QuickActions() {
 
   return (
     <View className="mb-6">
-      <Text className="text-foreground-light dark:text-foreground-dark text-xs font-bold mb-3.5 uppercase tracking-wider">
+      <Text className="text-foreground-light dark:text-foreground-dark text-xs font-bold mb-4 uppercase tracking-wider">
         Quick Management Actions
       </Text>
-      <View className="flex-row flex-wrap gap-3">
+      <View className="flex-row flex-wrap gap-4 justify-between">
         {actions.map((act) => (
           <Pressable
             key={act.title}
             onPress={() => router.push(act.route as any)}
-            className="w-[47.8%] active:opacity-90"
+            className="w-[47.5%] active:opacity-90"
             accessibilityRole="button"
             accessibilityLabel={`${act.title}: ${act.desc}`}
           >
-            <Card className="gap-3 p-3.5 border border-border-light dark:border-border-dark flex-col items-start min-h-[114px] bg-muted-light/5 dark:bg-muted-dark/5">
+            <Card className="gap-3 flex-col items-start min-h-[120px] shadow-sm">
               <View
                 className="w-9 h-9 rounded-xl items-center justify-center border"
                 style={{
-                  backgroundColor: `${act.color}15`,
-                  borderColor: `${act.color}35`,
+                  backgroundColor: `${act.color}10`,
+                  borderColor: `${act.color}25`,
                 }}
               >
                 <Ionicons name={act.icon as any} size={18} color={act.color} />
               </View>
               <View>
-                <Text className="text-foreground-light dark:text-foreground-dark font-extrabold text-xs">
+                <Text className="text-foreground-light dark:text-foreground-dark font-bold text-xs">
                   {act.title}
                 </Text>
-                <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[9px] mt-0.5 leading-snug" numberOfLines={2}>
+                <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[10px] mt-1 leading-snug" numberOfLines={2}>
                   {act.desc}
                 </Text>
               </View>

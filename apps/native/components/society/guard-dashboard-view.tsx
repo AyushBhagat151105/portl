@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { ScrollView, Text, View, Pressable, TextInput, ActivityIndicator, useColorScheme } from "react-native";
+import { ScrollView, Text, View, Pressable, TextInput, ActivityIndicator, useColorScheme, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { useSearchResidentsQuery, useRegisterVisitorMutation } from "../../queries/society";
 import { useToastStore } from "../../store/useToastStore";
 import { ScreenContainer } from "../ui/screen-container";
@@ -34,6 +35,9 @@ export function GuardDashboardView() {
         flatId: selectedFlat.id,
       });
 
+      if (Platform.OS !== "web") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
       showToast(`Gate call request sent for Flat ${selectedFlat.towerName} - ${selectedFlat.number}`, "success");
       setName("");
       setPhone("");
@@ -92,14 +96,17 @@ export function GuardDashboardView() {
                     resident.flats.map((f: any) => (
                       <Pressable
                         key={f.id}
-                        onPress={() =>
+                        onPress={() => {
+                          if (Platform.OS !== "web") {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          }
                           setSelectedFlat({
                             id: f.id,
                             number: f.number,
                             towerName: f.tower.name,
-                          })
-                        }
-                        className="py-3 px-4 border-b border-border-light dark:border-border-dark flex-row justify-between items-center active:opacity-70"
+                          });
+                        }}
+                        className="py-4 px-4 border-b border-border-light dark:border-border-dark flex-row justify-between items-center active:opacity-70"
                       >
                         <View>
                           <Text className="text-foreground-light dark:text-foreground-dark text-sm font-semibold">

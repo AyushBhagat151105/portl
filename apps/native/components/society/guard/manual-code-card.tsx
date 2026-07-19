@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, Pressable, ActivityIndicator } from "react-native";
+import { View, Text, TextInput, Pressable, ActivityIndicator, Platform } from "react-native";
+import * as Haptics from "expo-haptics";
 import { Card } from "../../ui/card";
 
 interface ManualCodeCardProps {
@@ -12,12 +13,15 @@ export function ManualCodeCard({ onVerify, isVerifying }: ManualCodeCardProps) {
 
   const handleVerify = () => {
     if (manualCode.length !== 6) return;
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
     onVerify(manualCode);
   };
 
   return (
     <View className="flex-1 mx-4 mb-4">
-      <Card className="gap-4 border border-border-light dark:border-border-dark">
+      <Card className="gap-4 border border-border-light dark:border-border-dark shadow-sm">
         <View>
           <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs mb-2 uppercase tracking-wider font-bold">
             Enter 6-Digit Passcode
@@ -29,7 +33,7 @@ export function ManualCodeCard({ onVerify, isVerifying }: ManualCodeCardProps) {
             placeholderTextColor="#78716c"
             keyboardType="number-pad"
             maxLength={6}
-            className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl py-4 text-center text-3xl font-black tracking-widest focus:border-primary-light dark:focus:border-primary-dark font-mono"
+            className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl py-4 text-center text-3xl font-bold tracking-widest focus:border-primary-light dark:focus:border-primary-dark font-mono"
           />
         </View>
 

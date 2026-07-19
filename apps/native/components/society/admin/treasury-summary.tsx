@@ -17,13 +17,13 @@ export function TreasurySummary() {
       <Text className="text-foreground-light dark:text-foreground-dark text-xs font-bold mb-3 uppercase tracking-wider">
         Treasury Statement
       </Text>
-      <Card className="p-4 border border-border-light dark:border-border-dark bg-muted-light/5 dark:bg-muted-dark/5 gap-3.5">
+      <Card className="gap-4">
         <View className="flex-row justify-between items-center">
           <View>
-            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[11px] font-bold uppercase tracking-wider">
+            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[10px] font-bold uppercase tracking-wider">
               Available Cash Balance
             </Text>
-            <Text className="text-foreground-light dark:text-foreground-dark text-2xl font-black font-mono mt-0.5">
+            <Text className="text-foreground-light dark:text-foreground-dark text-xl font-bold font-mono mt-1">
               ₹{budgetsLoading || expensesLoading ? "—" : remainingFunds.toLocaleString()}
             </Text>
           </View>
@@ -31,21 +31,21 @@ export function TreasurySummary() {
             <Ionicons name="stats-chart" size={18} color="#10b981" />
           </View>
         </View>
-
+ 
         <View className="flex-row justify-between items-center pt-3 border-t border-border-light/40 dark:border-border-dark/40">
           <View>
-            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[11px] font-bold uppercase tracking-wider">
+            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[10px] font-bold uppercase tracking-wider">
               Total Budgeted
             </Text>
-            <Text className="text-foreground-light dark:text-foreground-dark text-xs font-extrabold font-mono mt-0.5">
+            <Text className="text-foreground-light dark:text-foreground-dark text-xs font-bold font-mono mt-0.5">
               ₹{budgetsLoading ? "—" : totalBudgeted.toLocaleString()}
             </Text>
           </View>
           <View className="items-end">
-            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[11px] font-bold uppercase tracking-wider">
+            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[10px] font-bold uppercase tracking-wider">
               Total Expenditures
             </Text>
-            <Text className="text-rose-500 text-xs font-extrabold font-mono mt-0.5">
+            <Text className="text-rose-500 text-xs font-bold font-mono mt-0.5">
               ₹{expensesLoading ? "—" : totalSpent.toLocaleString()}
             </Text>
           </View>

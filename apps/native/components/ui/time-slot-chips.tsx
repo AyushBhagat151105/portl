@@ -1,5 +1,6 @@
 import React from "react";
-import { Text, Pressable, View } from "react-native";
+import { Text, Pressable, View, Platform } from "react-native";
+import * as Haptics from "expo-haptics";
 
 interface TimeSlot {
   label: string;
@@ -33,8 +34,13 @@ export function TimeSlotChips({ value, onChange, slots = DEFAULT_SLOTS }: TimeSl
         return (
           <Pressable
             key={slot.value}
-            onPress={() => onChange(slot.value)}
-            className={`flex-row items-center py-2.5 px-3.5 rounded-xl border ${
+            onPress={() => {
+              if (Platform.OS !== "web") {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }
+              onChange(slot.value);
+            }}
+            className={`flex-row items-center h-11 px-4 rounded-xl border ${
               isSelected
                 ? "bg-primary-light dark:bg-primary-dark border-primary-light dark:border-primary-dark"
                 : "bg-muted-light dark:bg-muted-dark border-border-light dark:border-border-dark"

@@ -7,11 +7,11 @@ import { logger } from "hono/logger";
 import { openapiSpec } from "./docs/openapi";
 
 // Import new split routers
-import commonRouter from "./routes/society/common.routes";
-import adminRouter from "./routes/society/admin.routes";
-import guardRouter from "./routes/society/guard.routes";
-import residentRouter from "./routes/society/resident.routes";
-import treasuryRouter from "./routes/society/treasury.routes";
+import commonRouter from "./routes/society/common/common.routes";
+import adminRouter from "./routes/society/admin/admin.routes";
+import guardRouter from "./routes/society/guard/guard.routes";
+import residentRouter from "./routes/society/resident/resident.routes";
+import treasuryRouter from "./routes/society/treasury/treasury.routes";
 
 const app = new Hono();
 
@@ -47,7 +47,7 @@ app.route("/api/society", commonRouter);
 // Support both /api/notifications and /api/society/notifications for token registration
 app.route("/api", commonRouter); // will route /api/notifications/register-token
 
-import { QueueService } from "./services/society/queue.service";
+import { QueueService } from "./services/society/common/queue.service";
 
 // Start background notification queue worker
 QueueService.startQueueWorker();

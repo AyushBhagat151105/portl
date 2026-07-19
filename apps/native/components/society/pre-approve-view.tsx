@@ -1,11 +1,12 @@
 import React, { useRef } from "react";
-import { Text, View, Pressable, TextInput, ActivityIndicator, Share } from "react-native";
+import { Text, View, Pressable, TextInput, ActivityIndicator, Share, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FieldError } from "heroui-native";
 import ViewShot from "react-native-view-shot";
 import * as Sharing from "expo-sharing";
+import * as Haptics from "expo-haptics";
 import { usePreApproveGuestMutation, useMyFlatsQuery } from "@/queries/society";
 import { useToastStore } from "@/store/useToastStore";
 import { ScreenContainer } from "@/components/ui/screen-container";
@@ -66,6 +67,9 @@ export function PreApproveView() {
         purpose: data.purpose,
         flatId: data.flatId,
       });
+      if (Platform.OS !== "web") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
       setGeneratedCode(visitor.preApprovedCode);
       setGuestName(data.name);
       showToast("Guest invitation code generated!", "success");
