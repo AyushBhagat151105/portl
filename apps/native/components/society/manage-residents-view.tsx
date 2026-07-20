@@ -73,6 +73,7 @@ export function ManageResidentsView() {
       id: member.user.id,
       name: member.user.name,
       email: member.user.email,
+      phoneNumber: member.user.phoneNumber || "",
       aadharNumber: member.user.aadharNumber || "",
       image: member.user.image || "",
       aadharPublicId: member.user.aadharPublicId || "",
@@ -86,6 +87,8 @@ export function ManageResidentsView() {
         await createResidentMutation.mutateAsync({
           name: data.name.trim(),
           email: data.email.trim().toLowerCase(),
+          phone: data.phone?.trim() || undefined,
+          password: data.password?.trim() || undefined,
           aadharNumber: data.aadharNumber?.trim() || undefined,
           image: data.image?.trim() || undefined,
           aadharPublicId: data.aadharPublicId?.trim() || undefined,
@@ -97,6 +100,7 @@ export function ManageResidentsView() {
           data: {
             name: data.name.trim(),
             email: data.email.trim().toLowerCase(),
+            phone: data.phone?.trim() || null,
             aadharNumber: data.aadharNumber?.trim() || null,
             image: data.image?.trim() || null,
             aadharPublicId: data.aadharPublicId?.trim() || null,

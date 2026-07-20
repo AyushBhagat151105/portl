@@ -20,6 +20,7 @@ export class ResidentVehicleService {
             name: true,
             email: true,
             image: true,
+            phoneNumber: true,
           },
         },
         flat: {

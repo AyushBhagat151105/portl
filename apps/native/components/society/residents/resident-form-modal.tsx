@@ -45,6 +45,8 @@ export function ResidentFormModal({
     defaultValues: {
       name: "",
       email: "",
+      phone: "",
+      password: "",
       aadharNumber: "",
       image: "",
       aadharPublicId: "",
@@ -69,16 +71,20 @@ export function ResidentFormModal({
   useEffect(() => {
     if (defaultValues) {
       reset({
-        name: defaultValues.name || "",
-        email: defaultValues.email || "",
-        aadharNumber: defaultValues.aadharNumber || "",
-        image: defaultValues.image || "",
-        aadharPublicId: defaultValues.aadharPublicId || "",
+        name: defaultValues.name || defaultValues.user?.name || "",
+        email: defaultValues.email || defaultValues.user?.email || "",
+        phone: defaultValues.phoneNumber || defaultValues.user?.phoneNumber || "",
+        password: "",
+        aadharNumber: defaultValues.aadharNumber || defaultValues.user?.aadharNumber || "",
+        image: defaultValues.image || defaultValues.user?.image || "",
+        aadharPublicId: defaultValues.aadharPublicId || defaultValues.user?.aadharPublicId || "",
       });
     } else {
       reset({
         name: "",
         email: "",
+        phone: "",
+        password: "",
         aadharNumber: "",
         image: "",
         aadharPublicId: "",
@@ -163,6 +169,28 @@ export function ResidentFormModal({
           keyboardType="email-address"
           autoCapitalize="none"
         />
+
+        {/* Phone Input */}
+        <FormInput
+          control={control}
+          name="phone"
+          label="Phone Number"
+          placeholder="e.g. +919876543210"
+          keyboardType="phone-pad"
+          autoCapitalize="none"
+        />
+
+        {/* Password Input (Create mode only) */}
+        {mode === "create" && (
+          <FormInput
+            control={control}
+            name="password"
+            label="Password *"
+            placeholder="Min 6 characters"
+            secureTextEntry
+            autoCapitalize="none"
+          />
+        )}
 
         {/* Aadhar Input */}
         <FormInput

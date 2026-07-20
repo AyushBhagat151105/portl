@@ -30,6 +30,7 @@ export function ProfileView() {
   // Form State
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [aadharNumber, setAadharNumber] = useState("");
   const [avatar, setAvatar] = useState("");
   const [aadharPublicId, setAadharPublicId] = useState("");
@@ -54,6 +55,7 @@ export function ProfileView() {
     if (profile) {
       setName(profile.name || "");
       setEmail(profile.email || "");
+      setPhone(profile.phoneNumber || "");
       setAadharNumber(profile.aadharNumber || "");
       setAvatar(profile.image || "");
       setAadharPublicId(profile.aadharPublicId || "");
@@ -67,6 +69,7 @@ export function ProfileView() {
       await updateProfileMutation.mutateAsync({
         name,
         email,
+        phone: phone || null,
         aadharNumber: aadharNumber || null,
         image: url,
         aadharPublicId: aadharPublicId || null,
@@ -98,6 +101,7 @@ export function ProfileView() {
       await updateProfileMutation.mutateAsync({
         name,
         email,
+        phone: phone || null,
         aadharNumber: aadharNumber || null,
         image: avatar || null,
         aadharPublicId: publicId,
@@ -154,6 +158,7 @@ export function ProfileView() {
       await updateProfileMutation.mutateAsync({
         name: name.trim(),
         email: email,
+        phone: phone || null,
         aadharNumber: aadharNumber || null,
         image: avatar || null,
         aadharPublicId: aadharPublicId || null,
@@ -226,6 +231,20 @@ export function ProfileView() {
                 placeholder="Enter email address"
                 placeholderTextColor="#78716c"
                 className="bg-muted-light/50 dark:bg-muted-dark/50 border border-border-light dark:border-border-dark text-muted-foreground-light dark:text-muted-foreground-dark rounded-xl px-4 py-3 text-sm"
+              />
+            </View>
+
+            <View className="gap-1.5">
+              <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs font-semibold uppercase tracking-wider">
+                Phone Number
+              </Text>
+              <TextInput
+                value={phone}
+                onChangeText={setPhone}
+                placeholder="Enter phone number"
+                placeholderTextColor="#78716c"
+                keyboardType="phone-pad"
+                className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl px-4 py-3 text-sm focus:border-primary-light dark:focus:border-primary-dark"
               />
             </View>
 

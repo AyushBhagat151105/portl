@@ -26,6 +26,8 @@ model User {
   aadharNumber       String?
   aadharPublicId     String?
   vehicleNumber      String?
+  phoneNumber        String?          @unique
+  phoneNumberVerified Boolean         @default(false)
 
   @@unique([email])
   @@map("user")

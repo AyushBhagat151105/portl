@@ -21,6 +21,8 @@ export type Member = {
     image?: string | null;
     aadharNumber?: string | null;
     aadharPublicId?: string | null;
+    phoneNumber?: string | null;
+    phoneNumberVerified?: boolean | null;
     vehicleNumber?: string | null;
     vehicles?: Vehicle[];
     flats: {

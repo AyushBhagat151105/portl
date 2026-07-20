@@ -1,4 +1,5 @@
 import prisma from "@portl/db";
+import { auth } from "@portl/auth";
 import { destroyAsset, extractPublicId, generateSignedDownloadUrl } from "../../../lib/cloudinary";
 
 
@@ -17,6 +18,8 @@ export class AdminResidentService {
             aadharNumber: true,
             aadharPublicId: true,
             vehicleNumber: true,
+            phoneNumber: true,
+            phoneNumberVerified: true,
             vehicles: true,
             flats: {
               where: { tower: { organizationId: societyId } },
@@ -39,7 +42,7 @@ export class AdminResidentService {
   // Create Resident Manually
   static async createResident(
     societyId: string,
-    data: { name: string; email: string; phone?: string; aadharNumber?: string; image?: string; aadharPublicId?: string }
+    data: { name: string; email: string; password?: string; phone?: string; aadharNumber?: string; image?: string; aadharPublicId?: string }
   ): Promise<any> {
     const existing = await prisma.user.findUnique({
       where: { email: data.email },
@@ -47,14 +50,29 @@ export class AdminResidentService {
     
     let user = existing;
     if (!user) {
-      user = await prisma.user.create({
-        data: {
-          id: crypto.randomUUID(),
-          name: data.name,
+      if (!data.password) {
+        throw new Error("Password is required to register a resident account.");
+      }
+      
+      const signUpRes = await auth.api.signUpEmail({
+        body: {
           email: data.email,
-          aadharNumber: data.aadharNumber,
-          image: data.image,
-          aadharPublicId: data.aadharPublicId,
+          password: data.password,
+          name: data.name,
+        },
+      });
+
+      const newUserId = signUpRes.user.id;
+
+      user = await prisma.user.update({
+        where: { id: newUserId },
+        data: {
+          phoneNumber: data.phone || null,
+          phoneNumberVerified: data.phone ? true : false,
+          aadharNumber: data.aadharNumber || null,
+          image: data.image || null,
+          aadharPublicId: data.aadharPublicId || null,
+          emailVerified: true,
         },
       });
     }
@@ -80,7 +98,7 @@ export class AdminResidentService {
   // Update Resident Profile
   static async updateResident(
     userId: string,
-    data: { name?: string; email?: string; aadharNumber?: string | null; image?: string | null; aadharPublicId?: string | null }
+    data: { name?: string; email?: string; phone?: string | null; aadharNumber?: string | null; image?: string | null; aadharPublicId?: string | null }
   ): Promise<any> {
     const currentUser = await prisma.user.findUnique({
       where: { id: userId },
@@ -100,9 +118,22 @@ export class AdminResidentService {
       await destroyAsset(currentUser.aadharPublicId, true);
     }
 
+    const updateData: any = {
+      name: data.name,
+      email: data.email,
+      aadharNumber: data.aadharNumber,
+      image: data.image,
+      aadharPublicId: data.aadharPublicId,
+    };
+
+    if (data.phone !== undefined) {
+      updateData.phoneNumber = data.phone;
+      updateData.phoneNumberVerified = data.phone ? true : false;
+    }
+
     return await prisma.user.update({
       where: { id: userId },
-      data,
+      data: updateData,
     });
   }
 

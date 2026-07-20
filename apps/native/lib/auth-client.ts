@@ -15,4 +15,14 @@ export const authClient = createAuthClient({
     }),
     organizationClient(),
   ],
+  user: {
+    additionalFields: {
+      phoneNumber: {
+        type: "string",
+      },
+      phoneNumberVerified: {
+        type: "boolean",
+      },
+    },
+  },
 });

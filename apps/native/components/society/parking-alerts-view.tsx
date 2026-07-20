@@ -113,6 +113,11 @@ export function ParkingAlertsView() {
                   <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs mt-0.5">
                     {vehicle.owner?.email}
                   </Text>
+                  {vehicle.owner?.phoneNumber && (
+                    <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs mt-0.5">
+                      {vehicle.owner.phoneNumber}
+                    </Text>
+                  )}
                 </View>
               </View>
             </View>
@@ -148,6 +153,18 @@ export function ParkingAlertsView() {
                   </>
                 )}
               </Pressable>
+
+              {vehicle.owner?.phoneNumber && (
+                <Pressable
+                  onPress={() => {
+                    Linking.openURL(`tel:${vehicle.owner.phoneNumber}`);
+                  }}
+                  className="bg-emerald-500/10 border border-emerald-500/20 active:opacity-75 py-3 rounded-2xl items-center flex-row justify-center gap-2"
+                >
+                  <Ionicons name="call-outline" size={16} color="#10b981" />
+                  <Text className="text-emerald-500 font-bold text-xs">Call Owner</Text>
+                </Pressable>
+              )}
 
               <Pressable
                 onPress={() => {

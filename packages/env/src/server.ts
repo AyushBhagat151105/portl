@@ -14,6 +14,8 @@ export const env = createEnv({
     CLOUDINARY_CLOUD_NAME: z.string().min(1),
     CLOUDINARY_API_KEY: z.string().min(1),
     CLOUDINARY_API_SECRET: z.string().min(1),
+    RESEND_API_KEY: z.string().min(1).optional(),
+    EMAIL_FROM: z.string().min(1).default("onboarding@resend.dev"),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

@@ -176,6 +176,8 @@ export class ResidentSocietyService {
           aadharNumber: data.aadharNumber,
           image: data.image,
           aadharPublicId: data.aadharPublicId,
+          phoneNumber: data.phone,
+          phoneNumberVerified: data.phone ? true : false,
         },
       });
 

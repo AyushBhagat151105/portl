@@ -20,9 +20,8 @@ export class AdminResidentController {
     try {
       const societyId = c.get("societyId");
       const body = await c.req.json();
-      // Using generic schema fields or checking email
-      if (!body.email || !body.name) {
-        return errorResponse(c, "Name and Email are required", "VALIDATION_ERROR", 400);
+      if (!body.email || !body.name || !body.password) {
+        return errorResponse(c, "Name, Email, and Password are required", "VALIDATION_ERROR", 400);
       }
       const result = await AdminResidentService.createResident(societyId, body);
       return successResponse(c, result, 201);

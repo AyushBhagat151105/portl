@@ -158,6 +158,8 @@ export type GenerateDuesFormData = z.infer<typeof generateDuesSchema>;
 export const createResidentSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().min(1, "Email is required").email("Invalid email address"),
+  phone: z.string().optional(),
+  password: z.string().min(6, "Password must be at least 6 characters"),
   aadharNumber: z
     .string()
     .optional()
@@ -168,6 +170,7 @@ export const createResidentSchema = z.object({
 export const updateResidentSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().min(1, "Email is required").email("Invalid email address"),
+  phone: z.string().optional(),
   aadharNumber: z
     .string()
     .optional()

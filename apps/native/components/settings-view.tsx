@@ -21,6 +21,8 @@ export function SettingsView() {
   const [updatingEmail, setUpdatingEmail] = useState(false);
   const [updatingPassword, setUpdatingPassword] = useState(false);
 
+  const [phone, setPhone] = useState((session?.user as any)?.phoneNumber || "");
+
   const handleUpdateProfile = async () => {
     if (!name.trim()) {
       showToast("Name is required", "error");
@@ -28,12 +30,14 @@ export function SettingsView() {
     }
     setUpdatingProfile(true);
     try {
-      const { error } = await authClient.updateUser({
+      const { error } = await (authClient.updateUser as any)({
         name,
         image: profileImage || undefined,
+        phoneNumber: phone || undefined,
       });
       if (error) throw new Error(error.message);
       showToast("Profile details updated successfully!", "success");
+      await authClient.getSession();
     } catch (err: any) {
       showToast(err.message || "Failed to update profile", "error");
     } finally {
@@ -116,6 +120,19 @@ export function SettingsView() {
               className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark text-sm px-4 py-3 rounded-xl focus:border-primary-light dark:focus:border-primary-dark"
               placeholder="https://example.com/avatar.jpg"
               placeholderTextColor="#78716c"
+            />
+          </View>
+
+          <View className="gap-1.5">
+            <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs">Phone Number</Text>
+            <TextInput
+              value={phone}
+              onChangeText={setPhone}
+              className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark text-sm px-4 py-3 rounded-xl focus:border-primary-light dark:focus:border-primary-dark"
+              placeholder="+919876543210"
+              placeholderTextColor="#78716c"
+              keyboardType="phone-pad"
+              autoCapitalize="none"
             />
           </View>
 

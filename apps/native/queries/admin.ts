@@ -229,7 +229,7 @@ export function useUpdateStaffMutation() {
 export function useCreateResidentMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { name: string; email: string; phone?: string; aadharNumber?: string; image?: string; aadharPublicId?: string }) => {
+    mutationFn: async (data: { name: string; email: string; password?: string; phone?: string; aadharNumber?: string; image?: string; aadharPublicId?: string }) => {
       const res = await api.post("/api/society/admin/residents", data);
       return res.data?.data;
     },
