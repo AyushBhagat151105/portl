@@ -6,6 +6,8 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { organization, bearer, openAPI } from "better-auth/plugins";
 
+import { getVerificationEmailTemplate, getResetPasswordEmailTemplate } from "./email-templates";
+
 const resend = new Resend(env.RESEND_API_KEY || "placeholder");
 
 export const auth = betterAuth({
@@ -31,11 +33,12 @@ export const auth = betterAuth({
         return;
       }
       try {
+        const html = getVerificationEmailTemplate({ name: user.name, url });
         const { data, error } = await resend.emails.send({
           from: env.EMAIL_FROM || "Portl Gate <noreply@email.ayushbhagat.com>",
           to: [user.email],
-          subject: "Verify your email address",
-          html: `<p>Hello ${user.name},</p><p>Please verify your email by clicking the link below:</p><p><a href="${url}">${url}</a></p>`,
+          subject: "Verify your Portl account email",
+          html,
         });
 
         if (error) {
@@ -62,11 +65,12 @@ export const auth = betterAuth({
         return;
       }
       try {
+        const html = getResetPasswordEmailTemplate({ name: user.name, url });
         const { data, error } = await resend.emails.send({
           from: env.EMAIL_FROM || "Portl Gate <noreply@email.ayushbhagat.com>",
           to: [user.email],
-          subject: "Reset your password",
-          html: `<p>Hello ${user.name},</p><p>You can reset your password using the link below:</p><p><a href="${url}">${url}</a></p>`,
+          subject: "Reset your Portl account password",
+          html,
         });
 
         if (error) {
