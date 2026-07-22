@@ -46,10 +46,16 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Accept Pre-installed Android SDK Licenses
+      - name: Write Pre-accepted Android SDK Licenses
         run: |
-          mkdir -p $ANDROID_HOME/licenses
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          for loc in "$ANDROID_HOME/licenses" "$HOME/.android/licenses" "/usr/local/lib/android/sdk/licenses"; do
+            mkdir -p "$loc"
+            printf "24333f8a63b6825ea9c5514f83c2829b004d1fee\nd56f5187479451eabf01fb78af6dfcb131a6481e\ne675675ecc063f1013a779156379a02302e1c312\n89330172575f56041019291ddf34e56ed61f5f2a" > "$loc/android-sdk-license"
+            printf "84831b9409646a5780ed63065a6222623a7971a6" > "$loc/android-sdk-preview-license"
+            printf "74659021008064a30704dd2b3780f2d4e0b57fa0" > "$loc/google-gdk-license"
+            printf "601007b946f40b51617e2a94661ea33f4435867b" > "$loc/android-googletv-license"
+            printf "33b6a2b6446236b60309267324816c61b9e2f014" > "$loc/android-googlexr-license"
+          done
 
       - name: Install EAS CLI
         run: bun add -g eas-cli@latest
