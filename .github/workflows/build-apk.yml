@@ -90,7 +90,8 @@ jobs:
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
           source: "apps/native/portl.apk"
-          target: "/root/portl/apps/server/uploads/"
+          target: "/root/portl/apps/server/uploads"
+          strip_components: 2
           rm: true
 
       - name: Restart Server to Sync Metadata
@@ -100,5 +101,14 @@ jobs:
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            docker exec portl-server touch /tmp/reload || true
+            mkdir -p /root/portl/apps/server/uploads
+            if [ -f "/root/portl/apps/server/uploads/apps/native/portl.apk" ]; then
+              mv /root/portl/apps/server/uploads/apps/native/portl.apk /root/portl/apps/server/uploads/portl.apk
+              rm -rf /root/portl/apps/server/uploads/apps
+            fi
+
+            # Copy APK directly into running container and restart
+            docker exec portl-server mkdir -p /app/uploads || true
+            docker cp /root/portl/apps/server/uploads/portl.apk portl-server:/app/uploads/portl.apk || true
+            docker restart portl-server || true
             echo "Successfully updated portl.apk on VPS"

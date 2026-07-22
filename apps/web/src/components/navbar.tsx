@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { DownloadSimple, List, X } from '@phosphor-icons/react';
+import { useApkRelease } from '../hooks/use-apk-release';
 
 export const Navbar: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { data: release } = useApkRelease();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -15,8 +17,8 @@ export const Navbar: React.FC = () => {
 
   const handleDownload = () => {
     const element = document.createElement('a');
-    element.href = '/portl-v1.0.0.apk';
-    element.download = 'portl-v1.0.0.apk';
+    element.href = release?.downloadUrl || 'https://portl-api.ayushbhagat.com/api/apk/download';
+    element.setAttribute('download', 'portl.apk');
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
@@ -36,7 +38,7 @@ export const Navbar: React.FC = () => {
           />
           <div className="flex flex-col text-left">
             <span className="text-white font-bold tracking-tight text-sm flex items-center gap-1.5">
-              Portl <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">v1.0</span>
+              Portl <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">v{release?.version || '1.0.0'}</span>
             </span>
             <span className="text-[10px] text-zinc-400 hidden sm:inline-block">Society Security & Dues</span>
           </div>
@@ -82,7 +84,7 @@ export const Navbar: React.FC = () => {
             className="w-full mt-2 py-3 rounded-full bg-amber-500 text-zinc-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
           >
             <DownloadSimple size={16} weight="bold" />
-            <span>Download Portl App (42 MB)</span>
+            <span>Download Portl App ({release?.sizeFormatted || '42.8 MB'})</span>
           </button>
         </div>
       )}
