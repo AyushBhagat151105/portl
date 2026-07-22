@@ -23,6 +23,8 @@ jobs:
           bun-version: latest
 
       - name: Install Workspace Dependencies
+        env:
+          DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
         run: bun install
 
       - name: Configure Native Environment Secrets

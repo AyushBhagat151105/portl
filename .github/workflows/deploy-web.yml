@@ -23,6 +23,8 @@ jobs:
           bun-version: latest
 
       - name: Install Monorepo Dependencies
+        env:
+          DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
         run: bun install
 
       - name: Build Web Application
