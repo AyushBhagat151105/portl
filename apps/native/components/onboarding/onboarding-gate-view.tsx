@@ -4,14 +4,18 @@ import { Ionicons } from "@expo/vector-icons";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { router } from "expo-router";
 import { authClient } from "@/lib/auth-client";
+import { api } from "@/lib/api";
+import { useSocietyStore } from "@/store/useSocietyStore";
 
 export function OnboardingGateView() {
   const { data: session, isPending } = authClient.useSession();
+  const { setRole } = useSocietyStore();
   const [resendLoading, setResendLoading] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [cooldownSeconds, setCooldownSeconds] = useState<number>(0);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isVerifiedLocally, setIsVerifiedLocally] = useState(false);
 
   // 120-second (2 minute) cooldown timer
   useEffect(() => {
@@ -25,6 +29,31 @@ export function OnboardingGateView() {
       if (interval) clearInterval(interval);
     };
   }, [cooldownSeconds]);
+
+  // If user is already verified on mount, check if they already have a membership
+  useEffect(() => {
+    if (session?.user?.emailVerified) {
+      checkExistingMembership();
+    }
+  }, [session?.user?.emailVerified]);
+
+  async function checkExistingMembership() {
+    try {
+      const res = await api.get("/api/society/my-membership");
+      const membership = res.data?.data;
+      if (membership) {
+        if (membership.role) {
+          const serverRole = membership.role.toLowerCase();
+          if (serverRole === "admin" || serverRole === "owner" || serverRole === "resident" || serverRole === "guard") {
+            setRole(serverRole === "owner" ? "admin" : (serverRole as "admin" | "resident" | "guard"));
+          }
+        }
+        router.replace("/(drawer)");
+      }
+    } catch {
+      // User has no membership yet, stay on onboarding options
+    }
+  }
 
   function formatTime(seconds: number): string {
     const mins = Math.floor(seconds / 60);
@@ -73,7 +102,26 @@ export function OnboardingGateView() {
       });
 
       if (updatedSession?.user?.emailVerified) {
-        setStatusMessage("Email verified! You can now proceed with onboarding.");
+        setIsVerifiedLocally(true);
+        setStatusMessage("Email verified! Unlocking onboarding...");
+        
+        // Check if user already has a membership
+        try {
+          const res = await api.get("/api/society/my-membership");
+          const membership = res.data?.data;
+          if (membership) {
+            if (membership.role) {
+              const serverRole = membership.role.toLowerCase();
+              if (serverRole === "admin" || serverRole === "owner" || serverRole === "resident" || serverRole === "guard") {
+                setRole(serverRole === "owner" ? "admin" : (serverRole as "admin" | "resident" | "guard"));
+              }
+            }
+            router.replace("/(drawer)");
+            return;
+          }
+        } catch {
+          // No membership yet, onboarding cards will render below
+        }
       } else {
         setErrorMessage("Email is not verified yet. Please check your inbox and click the link.");
       }
@@ -84,7 +132,7 @@ export function OnboardingGateView() {
     }
   }
 
-  const isUnverified = session?.user && !session.user.emailVerified;
+  const isUnverified = !isVerifiedLocally && session?.user && !session.user.emailVerified;
 
   return (
     <KeyboardAwareScrollView
@@ -162,7 +210,7 @@ export function OnboardingGateView() {
               <Pressable
                 onPress={handleCheckStatus}
                 disabled={checkingStatus}
-                className="bg-zinc-800 border border-zinc-700 active:opacity-80 py-3 rounded-xl items-center justify-center"
+                className="bg-zinc-800 border border-zinc-700 active:opacity-80 py-3 rounded-xl items-center justify-center flex-row gap-2"
               >
                 {checkingStatus ? (
                   <ActivityIndicator size="small" color="#ffffff" />

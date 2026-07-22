@@ -9,6 +9,7 @@ import { signInSchema, type SignInFormData } from "@/lib/form-schemas";
 import { Card } from "./ui/card";
 import { api } from "@/lib/api";
 import { useSocietyStore } from "@/store/useSocietyStore";
+import { syncUserMembershipAndNavigate } from "@/lib/membership-utils";
 
 interface SignInProps {
   isSubmittingRef?: React.MutableRefObject<boolean>;
@@ -43,33 +44,7 @@ function SignIn({ isSubmittingRef }: SignInProps) {
         return;
       }
 
-      // Fetch user membership directly to find role and redirect target
-      const memberRes = await api.get("/api/society/my-membership");
-      const membership = memberRes.data?.data;
-
-      // Sync role into Zustand store before routing
-      if (membership?.role) {
-        const serverRole = membership.role.toLowerCase();
-        if (serverRole === "admin" || serverRole === "owner" || serverRole === "resident" || serverRole === "guard") {
-          setRole(serverRole === "owner" ? "admin" : (serverRole as "admin" | "resident" | "guard"));
-        }
-      }
-
-      // Brief window for SecureStore write and navigation context to sync
-      await new Promise((resolve) => setTimeout(resolve, 200));
-
-      if (membership) {
-        const role = membership.role?.toLowerCase();
-        if (role === "admin" || role === "owner") {
-          router.replace("/(drawer)/admin/dashboard");
-        } else if (role === "guard") {
-          router.replace("/(drawer)/guard/dashboard");
-        } else {
-          router.replace("/(drawer)/resident/dashboard");
-        }
-      } else {
-        router.replace("/onboarding");
-      }
+      await syncUserMembershipAndNavigate(router, setRole);
     } catch (err: any) {
       if (isSubmittingRef) {
         isSubmittingRef.current = false;

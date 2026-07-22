@@ -29,6 +29,7 @@ import { ExpenseFormModal } from "./treasury/expense-form-modal";
 import { FestivalFormModal } from "./treasury/festival-form-modal";
 import { ExportModal } from "./treasury/export-modal";
 import { FdFormModal } from "./treasury/fd-form-modal";
+import { TreasurySummaryCards } from "./treasury/treasury-summary-cards";
 import { type CreateBudgetFormData, type CreateExpenseFormData, type CreateFestivalFormData } from "@/lib/form-schemas";
 
 export function TreasuryView() {
@@ -284,31 +285,17 @@ export function TreasuryView() {
       </View>
 
       {/* Real ERP Balance Sheet Summary Cards */}
-      <View className="flex-row gap-4 mb-6">
-        <Card className="flex-1 bg-emerald-500/10 border border-emerald-500/25 p-4 items-center">
-          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[10px] font-bold uppercase tracking-wider">
-            Total Income
-          </Text>
-          <Text className="text-emerald-600 dark:text-emerald-400 font-bold text-sm mt-1 font-mono">
-            ₹{totalDuesCollected.toLocaleString()}
-          </Text>
-        </Card>
-        <Card className="flex-1 bg-rose-500/10 border border-rose-500/25 p-4 items-center">
-          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[10px] font-bold uppercase tracking-wider">
-            Total Outflow
-          </Text>
-          <Text className="text-rose-500 dark:text-rose-400 font-bold text-sm mt-1 font-mono">
-            ₹{totalSpent.toLocaleString()}
-          </Text>
-        </Card>
-        <Card className="flex-1 bg-amber-500/10 border border-amber-500/25 p-4 items-center">
-          <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-[10px] font-bold uppercase tracking-wider">
-            Total Reserves
-          </Text>
-          <Text className={`${totalReserves >= 0 ? "text-amber-600 dark:text-amber-500" : "text-rose-500"} font-bold text-sm mt-1 font-mono`}>
-            {totalReserves < 0 ? "-" : ""}₹{Math.abs(totalReserves).toLocaleString()}
-          </Text>
-        </Card>
+      <View className="mb-6 space-y-4 gap-4">
+        <TreasurySummaryCards
+          openingBalanceAmount={openingBalanceAmount}
+          totalDuesCollected={totalDuesCollected}
+          totalSpent={totalSpent}
+          totalFds={totalFds}
+          liquidReserves={liquidReserves}
+          totalReserves={totalReserves}
+          totalDuesReceivable={totalDuesReceivable}
+          totalBudgeted={totalBudgeted}
+        />
       </View>
 
       {/* Tabs */}

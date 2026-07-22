@@ -41,6 +41,22 @@ export default function DrawerLayout() {
     );
   }
 
+  const [isVerifyingServerStatus, setIsVerifyingServerStatus] = React.useState(false);
+
+  React.useEffect(() => {
+    if (session?.user && !session.user.emailVerified && !isVerifyingServerStatus) {
+      setIsVerifyingServerStatus(true);
+      refetch?.()
+        ?.catch(() => {})
+        ?.finally(() => setIsVerifyingServerStatus(false));
+    }
+  }, [session?.user?.emailVerified]);
+
+  // Email verification gate: Only redirect if session is not pending and email is confirmed false after refetch
+  if (session?.user && !session.user.emailVerified && !isVerifyingServerStatus) {
+    return <Redirect href="/(auth)/verify-email" />;
+  }
+
   const bgColor = isLight ? "#fcfbf9" : "#1c1917";
   const fgColor = isLight ? "#4a3b33" : "#f5f5f4";
   const borderColor = isLight ? "#e8e5dc" : "#44403c";

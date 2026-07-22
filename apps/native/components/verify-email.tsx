@@ -8,6 +8,7 @@ import { authClient } from "@/lib/auth-client";
 import { verifyEmailSchema, type VerifyEmailFormData } from "@/lib/form-schemas";
 import { Card } from "./ui/card";
 import { Ionicons } from "@expo/vector-icons";
+import { api } from "@/lib/api";
 
 interface VerifyEmailProps {
   token?: string;
@@ -158,6 +159,26 @@ export function VerifyEmail({ token, email: defaultEmail }: VerifyEmailProps) {
     );
   }
 
+  async function handleProceedAfterVerification() {
+    try {
+      await authClient.getSession({
+        fetchOptions: {
+          headers: {
+            "Cache-Control": "no-cache",
+          },
+        },
+      });
+      const res = await api.get("/api/society/my-membership");
+      if (res.data?.data) {
+        router.replace("/(drawer)");
+        return;
+      }
+    } catch {
+      // Fallback
+    }
+    router.replace("/onboarding");
+  }
+
   if (isVerified) {
     return (
       <Card>
@@ -167,13 +188,14 @@ export function VerifyEmail({ token, email: defaultEmail }: VerifyEmailProps) {
             Email Verified Successfully!
           </Text>
           <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs text-center px-2">
-            Your email address has been verified. You can now start society onboarding.
+            Your email address has been verified. You can now access your society.
           </Text>
-          <Link href="/onboarding" asChild>
-            <Pressable className="bg-primary-light dark:bg-primary-dark w-full py-3 rounded-xl items-center mt-2">
-              <Text className="text-white font-bold text-sm">Start Onboarding</Text>
-            </Pressable>
-          </Link>
+          <Pressable
+            onPress={handleProceedAfterVerification}
+            className="bg-primary-light dark:bg-primary-dark w-full py-3 rounded-xl items-center mt-2"
+          >
+            <Text className="text-white font-bold text-sm">Continue to App</Text>
+          </Pressable>
         </View>
       </Card>
     );
