@@ -1,0 +1,12 @@
+services:
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    image: ghcr.io/ayushbhagat151105/portl-server:latest
+    container_name: portl-server
+    restart: always
+    ports:
+      - "3005:3000"
+    env_file:
+      - .env.production
