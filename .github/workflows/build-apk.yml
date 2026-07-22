@@ -49,6 +49,18 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Accept All Android SDK Licenses
+        run: |
+          mkdir -p "$ANDROID_HOME/licenses"
+          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > "$ANDROID_HOME/licenses/android-sdk-license"
+          echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> "$ANDROID_HOME/licenses/android-sdk-license"
+          echo "e675675ecc063f1013a779156379a02302e1c312" >> "$ANDROID_HOME/licenses/android-sdk-license"
+          echo "84831b9409646a5780ed63065a6222623a7971a6" > "$ANDROID_HOME/licenses/android-sdk-preview-license"
+          echo "89330172575f56041019291ddf34e56ed61f5f2a" > "$ANDROID_HOME/licenses/intel-android-sysimage-license"
+          echo "74659021008064a30704dd2b3780f2d4e0b57fa0" > "$ANDROID_HOME/licenses/google-gdk-license"
+          echo "e96673f804437149ed06ea31c07b2cc81a50e487" > "$ANDROID_HOME/licenses/mips-android-sysimage-license"
+          yes | sdkmanager --licenses || true
+
       - name: Install EAS CLI
         run: bun add -g eas-cli@latest
 
