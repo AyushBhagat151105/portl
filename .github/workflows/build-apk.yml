@@ -12,6 +12,8 @@ jobs:
   build-and-deploy:
     name: Build APK Locally on GitHub Runner & Deploy to VPS
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
 
     steps:
       - name: Checkout Repository
@@ -23,8 +25,6 @@ jobs:
           bun-version: latest
 
       - name: Install Workspace Dependencies
-        env:
-          DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
         run: bun install
 
       - name: Configure Native Environment Secrets
@@ -46,9 +46,8 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Accept All Android SDK Licenses
+      - name: Write Pre-accepted Android SDK Licenses
         run: |
-          # 1. Inject license hashes into all standard Android SDK locations
           for loc in "$ANDROID_HOME/licenses" "$HOME/.android/licenses" "/usr/local/lib/android/sdk/licenses"; do
             mkdir -p "$loc"
             printf "24333f8a63b6825ea9c5514f83c2829b004d1fee\nd56f5187479451eabf01fb78af6dfcb131a6481e\ne675675ecc063f1013a779156379a02302e1c312\n89330172575f56041019291ddf34e56ed61f5f2a" > "$loc/android-sdk-license"
@@ -58,15 +57,13 @@ jobs:
             printf "33b6a2b6446236b60309267324816c61b9e2f014" > "$loc/android-googlexr-license"
           done
 
-          # 2. Run sdkmanager auto-accept pipe
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses --sdk_root="$ANDROID_HOME" || true
-
       - name: Install EAS CLI
         run: bun add -g eas-cli@latest
 
       - name: Build APK Locally (Zero Expo Queue)
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
         run: |
           cd apps/native
           eas build --platform android --profile preview --local --output ./portl.apk
