@@ -2,7 +2,7 @@ name: Build & Deploy Android APK (Zero Queue)
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master, main ]
     paths:
       - 'apps/native/**'
       - 'packages/**'

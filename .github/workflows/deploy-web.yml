@@ -2,7 +2,7 @@ name: Deploy Web Landing Page (Non-Docker Static)
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master, main ]
     paths:
       - 'apps/web/**'
       - 'packages/**'
