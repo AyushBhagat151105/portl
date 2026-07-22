@@ -52,6 +52,27 @@ import { QueueService } from "./services/society/common/queue.service";
 // Start background notification queue worker
 QueueService.startQueueWorker();
 
+import prisma from "@portl/db";
+
+app.get("/health", async (c) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return c.json({
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+      database: "connected",
+      uptime: process.uptime(),
+    }, 200);
+  } catch (err: any) {
+    return c.json({
+      status: "unhealthy",
+      timestamp: new Date().toISOString(),
+      database: "disconnected",
+      error: err.message,
+    }, 500);
+  }
+});
+
 app.get("/", (c) => {
   return c.text("OK");
 });
