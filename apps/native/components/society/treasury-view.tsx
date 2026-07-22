@@ -348,7 +348,7 @@ export function TreasuryView() {
                   General Trial Balance (FY 2025-2026)
                 </Text>
               </View>
-              <View className="bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg flex-shrink-0">
+              <View className="bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg shrink-0">
                 <Text className="text-amber-700 dark:text-amber-500 text-[8px] font-extrabold uppercase">Balanced Ledger</Text>
               </View>
             </View>
@@ -586,7 +586,7 @@ export function TreasuryView() {
                     {f.maturityDate ? ` • Matures: ${new Date(f.maturityDate).toLocaleDateString()}` : ""}
                   </Text>
                   {f.interestRate ? (
-                    <View className="bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded mt-2 rounded-lg self-start">
+                    <View className="bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 mt-2 rounded-lg self-start">
                       <Text className="text-amber-700 dark:text-amber-500 text-[10px] font-bold font-mono">Rate: {f.interestRate}% p.a.</Text>
                     </View>
                   ) : null}

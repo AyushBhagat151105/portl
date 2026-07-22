@@ -6,12 +6,13 @@ import { Scalar } from "@scalar/hono-api-reference";
 import { logger } from "hono/logger";
 import { openapiSpec } from "./docs/openapi";
 
-// Import new split routers
+// Import routers
 import commonRouter from "./routes/society/common/common.routes";
 import adminRouter from "./routes/society/admin/admin.routes";
 import guardRouter from "./routes/society/guard/guard.routes";
 import residentRouter from "./routes/society/resident/resident.routes";
 import treasuryRouter from "./routes/society/treasury/treasury.routes";
+import apkRouter from "./routes/apk.routes";
 
 const app = new Hono();
 
@@ -19,7 +20,13 @@ app.use(logger());
 app.use(
   "/*",
   cors({
-    origin: env.CORS_ORIGIN,
+    origin: (origin) => {
+      // Allow localhost, portl.ayushbhagat.com, and configured origins
+      if (!origin || origin.includes("ayushbhagat.com") || origin.includes("localhost")) {
+        return origin || "*";
+      }
+      return env.CORS_ORIGIN;
+    },
     allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
     credentials: true,
@@ -34,8 +41,11 @@ app.get("/openapi.json", (c) => c.json(openapiSpec));
 app.get("/reference", Scalar({
   sources: [
     { url: "/openapi.json", title: "App API" },
-    {url: "/api/auth/open-api/generate-schema", title: "Auth"}
+    { url: "/api/auth/open-api/generate-schema", title: "Auth" }
 ] }));
+
+// Mount APK release endpoints
+app.route("/api/apk", apkRouter);
 
 // Mount role-specific society routes
 app.route("/api/society/admin/treasury", treasuryRouter);
