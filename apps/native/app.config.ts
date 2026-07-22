@@ -1,0 +1,74 @@
+import type { ExpoConfig, ConfigContext } from "expo/config";
+
+export default ({ config }: ConfigContext): ExpoConfig => ({
+  ...config,
+  name: "portl",
+  slug: "portl",
+  version: "1.0.0",
+  orientation: "portrait",
+  icon: "./assets/images/icon.png",
+  scheme: "portl",
+  userInterfaceStyle: "automatic",
+  ios: {
+    supportsTablet: true,
+    bundleIdentifier: "com.betterfullstack.portl",
+  },
+  android: {
+    adaptiveIcon: {
+      backgroundColor: "#09090b",
+      foregroundImage: "./assets/images/android-icon-foreground.png",
+    },
+    googleServicesFile:
+      process.env.GOOGLE_SERVICES_JSON ||
+      process.env.GOOGLE_SERVICES_FILE ||
+      "./google-services.json",
+    predictiveBackGestureEnabled: false,
+    package: "com.betterfullstack.portl",
+  },
+  web: {
+    output: "static",
+    favicon: "./assets/images/favicon.png",
+  },
+  plugins: [
+    "expo-router",
+    "expo-font",
+    [
+      "expo-splash-screen",
+      {
+        image: "./assets/images/splash-icon.png",
+        imageWidth: 200,
+        resizeMode: "contain",
+        backgroundColor: "#09090b",
+        dark: {
+          backgroundColor: "#09090b",
+        },
+      },
+    ],
+    [
+      "expo-notifications",
+      {
+        icon: "./assets/images/icon.png",
+        color: "#111827",
+      },
+    ],
+    [
+      "expo-camera",
+      {
+        cameraPermission: "Allow Portl to access your camera for scanning guest QR codes",
+        barcodeScannerEnabled: true,
+      },
+    ],
+    "expo-sharing",
+  ],
+  experiments: {
+    typedRoutes: true,
+    reactCompiler: true,
+  },
+  extra: {
+    router: {},
+    eas: {
+      projectId: "4365dcac-2316-4a65-8fdf-72a821ddc86a",
+    },
+  },
+  owner: "ayush_bhagat_151105",
+});

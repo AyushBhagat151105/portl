@@ -49,6 +49,11 @@ jobs:
             echo "Created placeholder apps/native/google-services.json"
           fi
 
+          # Stage google-services.json so EAS CLI archive collector includes it
+          cd apps/native
+          git add -f google-services.json || true
+          export GOOGLE_SERVICES_JSON="$(pwd)/google-services.json"
+
       - name: Setup Java 17 (JDK)
         uses: actions/setup-java@v4
         with:
@@ -75,6 +80,7 @@ jobs:
           DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
         run: |
           cd apps/native
+          export GOOGLE_SERVICES_JSON="$(pwd)/google-services.json"
           eas build --platform android --profile preview --local --output ./portl.apk
 
       - name: Upload APK to VPS Storage via SCP
