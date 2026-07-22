@@ -78,7 +78,7 @@ export async function exportTreasuryReport(
 
   // Filter out the opening balance from normal collections
   const openingBalanceDue = filteredDues.find((d) => d.month && d.month.includes("Opening Balance"));
-  const openingBalanceAmount = openingBalanceDue ? openingBalanceDue.amount : 1045966;
+  const openingBalanceAmount = openingBalanceDue ? openingBalanceDue.amount : 0;
 
   const normalPaidDues = filteredDues.filter((d) => d.status === "PAID" && !(d.month && d.month.includes("Opening Balance")));
   const totalDuesCollected = normalPaidDues.reduce((sum, d) => sum + d.amount, 0);
@@ -88,7 +88,7 @@ export async function exportTreasuryReport(
   const totalFds = filteredFds.reduce((sum, f) => sum + f.amount, 0);
 
   const closingBalance = (openingBalanceAmount + totalDuesCollected) - totalSpent - totalFds;
-  const closingCash = 1653;
+  const closingCash = 0;
   const closingBank = Math.max(0, closingBalance - closingCash);
 
   // 2. CSV Generation

@@ -38,7 +38,11 @@ export function SignUp({ isSubmittingRef }: SignUpProps) {
         email: data.email,
         password: data.password,
       });
-      await authClient.getSession();
+      const sessionRes = await authClient.getSession();
+      if (sessionRes.data?.user && !sessionRes.data.user.emailVerified) {
+        router.replace("/(auth)/verify-email");
+        return;
+      }
 
       // Fetch user membership directly to find role and redirect target
       const memberRes = await api.get("/api/society/my-membership");

@@ -15,6 +15,28 @@ export const signUpSchema = z.object({
     .min(8, "Password must be at least 8 characters"),
 });
 
+export const forgotPasswordSchema = z.object({
+  email: z.string().min(1, "Email is required").email("Invalid email address"),
+});
+
+export const resetPasswordSchema = z
+  .object({
+    password: z
+      .string()
+      .min(1, "New password is required")
+      .min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string().min(1, "Please confirm your password"),
+    token: z.string().optional(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
+export const verifyEmailSchema = z.object({
+  email: z.string().min(1, "Email is required").email("Invalid email address"),
+});
+
 // ── Onboarding Forms ────────────────────────────────────
 export const createSocietySchema = z.object({
   name: z.string().min(1, "Society name is required"),
@@ -127,6 +149,9 @@ export const verifyPasscodeSchema = z.object({
 // ── Inferred Types ──────────────────────────────────────
 export type SignInFormData = z.infer<typeof signInSchema>;
 export type SignUpFormData = z.infer<typeof signUpSchema>;
+export type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
+export type VerifyEmailFormData = z.infer<typeof verifyEmailSchema>;
 export type CreateSocietyFormData = z.infer<typeof createSocietySchema>;
 export type JoinSocietyFormData = z.infer<typeof joinSocietySchema>;
 export type SetupStructureFormData = z.infer<typeof setupStructureSchema>;

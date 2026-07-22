@@ -25,19 +25,28 @@ export const auth = betterAuth({
 
   emailVerification: {
     sendVerificationEmail: async ({ user, url }) => {
+      console.log(`[AUTH EMAIL] Sending verification email to ${user.email}. Link: ${url}`);
       if (!env.RESEND_API_KEY) {
         console.warn("RESEND_API_KEY is not configured. Logging verification link:", url);
         return;
       }
       try {
-        await resend.emails.send({
-          from: env.EMAIL_FROM || "Portl Gate <onboarding@resend.dev>",
+        const { data, error } = await resend.emails.send({
+          from: env.EMAIL_FROM || "Portl Gate <noreply@email.ayushbhagat.com>",
           to: [user.email],
           subject: "Verify your email address",
           html: `<p>Hello ${user.name},</p><p>Please verify your email by clicking the link below:</p><p><a href="${url}">${url}</a></p>`,
         });
+
+        if (error) {
+          console.error("[RESEND ERROR] Failed to send verification email:", error.message);
+          console.warn("[AUTH FALLBACK] Use this verification URL directly:", url);
+        } else {
+          console.log("[RESEND SUCCESS] Verification email sent successfully. ID:", data?.id);
+        }
       } catch (err) {
         console.error("Failed to send verification email:", err);
+        console.warn("[AUTH FALLBACK] Use this verification URL directly:", url);
       }
     },
   },
@@ -47,19 +56,28 @@ export const auth = betterAuth({
     requireEmailVerification: false,
     revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ user, url }) => {
+      console.log(`[AUTH EMAIL] Sending reset password email to ${user.email}. Link: ${url}`);
       if (!env.RESEND_API_KEY) {
         console.warn("RESEND_API_KEY is not configured. Logging reset password link:", url);
         return;
       }
       try {
-        await resend.emails.send({
-          from: env.EMAIL_FROM || "Portl Gate <onboarding@resend.dev>",
+        const { data, error } = await resend.emails.send({
+          from: env.EMAIL_FROM || "Portl Gate <noreply@email.ayushbhagat.com>",
           to: [user.email],
           subject: "Reset your password",
           html: `<p>Hello ${user.name},</p><p>You can reset your password using the link below:</p><p><a href="${url}">${url}</a></p>`,
         });
+
+        if (error) {
+          console.error("[RESEND ERROR] Failed to send reset password email:", error.message);
+          console.warn("[AUTH FALLBACK] Use this reset password URL directly:", url);
+        } else {
+          console.log("[RESEND SUCCESS] Reset password email sent successfully. ID:", data?.id);
+        }
       } catch (err) {
         console.error("Failed to send reset password email:", err);
+        console.warn("[AUTH FALLBACK] Use this reset password URL directly:", url);
       }
     },
   },

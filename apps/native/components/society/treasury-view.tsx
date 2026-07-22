@@ -213,7 +213,7 @@ export function TreasuryView() {
 
   // Real Balance Sheet Metrics
   const openingDue = dues.find((d: any) => d.month && d.month.includes("Opening Balance"));
-  const openingBalanceAmount = openingDue ? openingDue.amount : 1045966;
+  const openingBalanceAmount = openingDue ? openingDue.amount : 0;
 
   const normalPaidDues = dues.filter((d: any) => d.status === "PAID" && !(d.month && d.month.includes("Opening Balance")));
   const normalUnpaidDues = dues.filter((d: any) => d.status !== "PAID" && !(d.month && d.month.includes("Opening Balance")));
@@ -403,7 +403,7 @@ export function TreasuryView() {
                 <View className="border-t border-emerald-500/20 pt-4 flex-row justify-between items-center mt-6">
                   <Text className="text-[9px] font-black text-emerald-800 dark:text-emerald-400 uppercase">Total Inflow</Text>
                   <Text className="text-xs font-black font-mono text-emerald-800 dark:text-emerald-400">
-                    ₹{(1045966 + totalDuesCollected).toLocaleString()}
+                    ₹{(openingBalanceAmount + totalDuesCollected).toLocaleString()}
                   </Text>
                 </View>
               </View>
@@ -444,10 +444,10 @@ export function TreasuryView() {
                       Closing Balance
                     </Text>
                     <Text className="text-[9px] text-muted-foreground-light dark:text-zinc-500 font-semibold mt-0.5">
-                      Cash: ₹1,653 • Bank: ₹{((1045966 + totalDuesCollected) - totalSpent - totalFds - 1653).toLocaleString()}
+                      Bank Reserves
                     </Text>
                     <Text className="text-xs font-black font-mono text-foreground-light dark:text-white mt-1">
-                      ₹{((1045966 + totalDuesCollected) - totalSpent - totalFds).toLocaleString()}
+                      ₹{((openingBalanceAmount + totalDuesCollected) - totalSpent - totalFds).toLocaleString()}
                     </Text>
                   </View>
                 </View>
@@ -455,7 +455,7 @@ export function TreasuryView() {
                 <View className="border-t border-border-light/60 dark:border-zinc-800 pt-4 flex-row justify-between items-center mt-6">
                   <Text className="text-[9px] font-black text-foreground-light dark:text-white uppercase">Total Outflow</Text>
                   <Text className="text-xs font-black font-mono text-foreground-light dark:text-white">
-                    ₹{(1045966 + totalDuesCollected).toLocaleString()}
+                    ₹{(openingBalanceAmount + totalDuesCollected).toLocaleString()}
                   </Text>
                 </View>
               </View>

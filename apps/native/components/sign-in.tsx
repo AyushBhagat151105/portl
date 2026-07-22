@@ -1,9 +1,9 @@
 import { Button, FieldError, Spinner, TextField, Label, Input } from "heroui-native";
 import { useState } from "react";
-import { Text, View } from "react-native";
+import { Text, View, Pressable } from "react-native";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "expo-router";
+import { useRouter, Link } from "expo-router";
 import { authClient } from "@/lib/auth-client";
 import { signInSchema, type SignInFormData } from "@/lib/form-schemas";
 import { Card } from "./ui/card";
@@ -37,7 +37,11 @@ function SignIn({ isSubmittingRef }: SignInProps) {
         email: data.email,
         password: data.password,
       });
-      await authClient.getSession();
+      const sessionRes = await authClient.getSession();
+      if (sessionRes.data?.user && !sessionRes.data.user.emailVerified) {
+        router.replace("/(auth)/verify-email");
+        return;
+      }
 
       // Fetch user membership directly to find role and redirect target
       const memberRes = await api.get("/api/society/my-membership");
@@ -139,6 +143,16 @@ function SignIn({ isSubmittingRef }: SignInProps) {
             </TextField>
           )}
         />
+
+        <View className="items-end">
+          <Link href="/(auth)/forgot-password" asChild>
+            <Pressable>
+              <Text className="text-primary-light dark:text-primary-dark text-xs font-semibold">
+                Forgot Password?
+              </Text>
+            </Pressable>
+          </Link>
+        </View>
 
         <Button onPress={handleSubmit(onSubmit)} isDisabled={isLoading} className="mt-2 bg-primary-light dark:bg-primary-dark rounded-xl py-3 items-center justify-center active:opacity-90">
           {isLoading ? (
