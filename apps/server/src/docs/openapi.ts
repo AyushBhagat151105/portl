@@ -13,7 +13,7 @@ export const openapiSpec = {
   },
   servers: [
     {
-      url: "http://192.168.31.93:3000",
+      url: "https://portl-api.ayushbhagat.com",
       description: "Development Server",
     },
   ],
