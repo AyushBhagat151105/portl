@@ -5,6 +5,9 @@ on:
     branches:
       - main
       - master
+    paths:
+      - 'apps/server/**'
+      - 'packages/**'
 
 env:
   REGISTRY: ghcr.io
