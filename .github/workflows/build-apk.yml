@@ -27,18 +27,27 @@ jobs:
       - name: Install Workspace Dependencies
         run: bun install
 
-      - name: Configure Native Environment Secrets
+      - name: Configure Native Environment Secrets & google-services.json
         env:
           EXPO_PUBLIC_SERVER_URL: ${{ secrets.EXPO_PUBLIC_SERVER_URL }}
           EXPO_PUBLIC_AUTH_REDIRECT_PATH: ${{ secrets.EXPO_PUBLIC_AUTH_REDIRECT_PATH }}
           EXPO_PUBLIC_EAS_PROJECT_ID: ${{ secrets.EXPO_PUBLIC_EAS_PROJECT_ID }}
           EXPO_PUBLIC_RAZORPAY_KEY_ID: ${{ secrets.EXPO_PUBLIC_RAZORPAY_KEY_ID }}
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
         run: |
           mkdir -p apps/native
           echo "EXPO_PUBLIC_SERVER_URL=${EXPO_PUBLIC_SERVER_URL}" > apps/native/.env
           echo "EXPO_PUBLIC_AUTH_REDIRECT_PATH=${EXPO_PUBLIC_AUTH_REDIRECT_PATH}" >> apps/native/.env
           echo "EXPO_PUBLIC_EAS_PROJECT_ID=${EXPO_PUBLIC_EAS_PROJECT_ID}" >> apps/native/.env
           echo "EXPO_PUBLIC_RAZORPAY_KEY_ID=${EXPO_PUBLIC_RAZORPAY_KEY_ID}" >> apps/native/.env
+
+          if [ -n "$GOOGLE_SERVICES_JSON_BASE64" ]; then
+            echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 -d > apps/native/google-services.json
+            echo "Successfully decoded apps/native/google-services.json from secrets"
+          else
+            echo '{"project_info": {"project_number": "000000000000", "project_id": "placeholder"}}' > apps/native/google-services.json
+            echo "Created placeholder apps/native/google-services.json"
+          fi
 
       - name: Setup Java 17 (JDK)
         uses: actions/setup-java@v4
