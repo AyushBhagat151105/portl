@@ -15,13 +15,29 @@ export const unstable_settings = {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 30,       // 30s — don't refetch if data is under 30s old
-      gcTime: 1000 * 60 * 5,      // 5min — keep unused cache alive for back-nav
-      retry: 1,                   // one retry on network error, then fail fast
-      refetchOnWindowFocus: false, // no-op on native but explicit is better
+      staleTime: 1000 * 5,         // 5s cache freshness for real-time responsiveness
+      gcTime: 1000 * 60 * 10,      // 10m cache retention for back navigation
+      retry: 2,
+      refetchOnWindowFocus: true,  // Trigger refetch when app comes to foreground / focus
+      refetchOnReconnect: true,    // Trigger refetch when network reconnects
     },
   },
 });
+
+import { useAppStateFocus } from "@/hooks/useAppStateFocus";
+import { useNotificationHandler } from "@/hooks/useNotificationHandler";
+import { UpdateModal } from "@/components/UpdateModal";
+
+function AppProviders({ children }: { children: React.ReactNode }) {
+  useAppStateFocus();
+  useNotificationHandler();
+  return (
+    <>
+      {children}
+      <UpdateModal />
+    </>
+  );
+}
 
 function StackLayout() {
   return (
@@ -41,8 +57,10 @@ export default function Layout() {
         <AppThemeProvider>
           <QueryClientProvider client={queryClient}>
             <HeroUINativeProvider>
-              <StackLayout />
-              <Toast />
+              <AppProviders>
+                <StackLayout />
+                <Toast />
+              </AppProviders>
             </HeroUINativeProvider>
           </QueryClientProvider>
         </AppThemeProvider>

@@ -9,6 +9,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   icon: "./assets/images/icon.png",
   scheme: "portl",
   userInterfaceStyle: "automatic",
+  runtimeVersion: {
+    policy: "appVersion",
+  },
+  updates: {
+    enabled: true,
+    url: "https://portl-api.ayushbhagat.com/api/manifest",
+    checkAutomatically: "ON_LOAD",
+    fallbackToCacheTimeout: 0,
+  },
   ios: {
     supportsTablet: true,
     bundleIdentifier: "com.betterfullstack.portl",
@@ -24,12 +33,16 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       "./google-services.json",
     predictiveBackGestureEnabled: false,
     package: "com.betterfullstack.portl",
+    permissions: [
+      "android.permission.REQUEST_INSTALL_PACKAGES",
+    ],
   },
   web: {
     output: "static",
     favicon: "./assets/images/favicon.png",
   },
   plugins: [
+    "expo-updates",
     "expo-router",
     "expo-font",
     [

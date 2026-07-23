@@ -13,6 +13,7 @@ import guardRouter from "./routes/society/guard/guard.routes";
 import residentRouter from "./routes/society/resident/resident.routes";
 import treasuryRouter from "./routes/society/treasury/treasury.routes";
 import apkRouter from "./routes/apk.routes";
+import otaRouter from "./routes/ota.routes";
 
 const app = new Hono();
 
@@ -44,8 +45,9 @@ app.get("/reference", Scalar({
     { url: "/api/auth/open-api/generate-schema", title: "Auth" }
 ] }));
 
-// Mount APK release endpoints
+// Mount APK release and OTA update endpoints
 app.route("/api/apk", apkRouter);
+app.route("/api", otaRouter);
 
 // Mount role-specific society routes
 app.route("/api/society/admin/treasury", treasuryRouter);

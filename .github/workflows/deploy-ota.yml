@@ -1,0 +1,74 @@
+name: Deploy OTA JS Bundle (1-Minute Fast Deploy)
+
+on:
+  push:
+    branches: [ master, main ]
+    paths:
+      - 'apps/native/app/**'
+      - 'apps/native/components/**'
+      - 'apps/native/contexts/**'
+      - 'apps/native/hooks/**'
+      - 'apps/native/lib/**'
+      - 'apps/native/queries/**'
+      - 'apps/native/store/**'
+  workflow_dispatch:
+
+jobs:
+  deploy-ota:
+    name: Export JS Bundle & Deploy to VPS OTA Directory
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun Environment
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install Workspace Dependencies
+        run: bun install
+
+      - name: Configure Native Environment Secrets
+        env:
+          EXPO_PUBLIC_SERVER_URL: ${{ secrets.EXPO_PUBLIC_SERVER_URL }}
+          EXPO_PUBLIC_AUTH_REDIRECT_PATH: ${{ secrets.EXPO_PUBLIC_AUTH_REDIRECT_PATH }}
+          EXPO_PUBLIC_EAS_PROJECT_ID: ${{ secrets.EXPO_PUBLIC_EAS_PROJECT_ID }}
+          EXPO_PUBLIC_RAZORPAY_KEY_ID: ${{ secrets.EXPO_PUBLIC_RAZORPAY_KEY_ID }}
+        run: |
+          mkdir -p apps/native
+          echo "EXPO_PUBLIC_SERVER_URL=${EXPO_PUBLIC_SERVER_URL}" > apps/native/.env
+          echo "EXPO_PUBLIC_AUTH_REDIRECT_PATH=${EXPO_PUBLIC_AUTH_REDIRECT_PATH}" >> apps/native/.env
+          echo "EXPO_PUBLIC_EAS_PROJECT_ID=${EXPO_PUBLIC_EAS_PROJECT_ID}" >> apps/native/.env
+          echo "EXPO_PUBLIC_RAZORPAY_KEY_ID=${EXPO_PUBLIC_RAZORPAY_KEY_ID}" >> apps/native/.env
+
+      - name: Export Expo JS Bundle & Manifest
+        run: |
+          cd apps/native
+          npx expo export --output-dir ./dist
+
+      - name: SCP OTA Bundle & Manifest to VPS
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "apps/native/dist/*"
+          target: "/root/portl/apps/server/uploads/updates"
+          strip_components: 3
+          rm: true
+
+      - name: Inject OTA Bundle into Server Container
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            mkdir -p /root/portl/apps/server/uploads/updates
+            docker exec portl-server mkdir -p /app/uploads/updates || true
+            docker cp /root/portl/apps/server/uploads/updates/. portl-server:/app/uploads/updates/ || true
+            echo "Successfully updated OTA JS bundle on VPS"
