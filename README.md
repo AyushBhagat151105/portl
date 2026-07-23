@@ -1,43 +1,105 @@
-# portl
+# Portl — Smart Gated Community & Society Management Platform
 
-This project was created with [Better Fullstack](https://github.com/Marve10s/Better-Fullstack) using the multi-ecosystem project graph.
+![Portl Platform Banner](https://raw.githubusercontent.com/AyushBhagat151105/portl/master/apps/native/assets/images/icon.png)
 
-## Stack
+> **Portl** is an end-to-end, high-performance smart society management ecosystem built for modern gated communities. It seamlessly connects **Residents**, **Security Guards**, and **Society Administrators** with real-time gate entry approvals, treasury financial transparency, digital visitor passes, maintenance dues, and instant OTA bundle updates.
 
-- Frontend: native-uniwind
-- Backend: not selected
+---
 
-## Project Structure
+## 🌟 Key Features
+
+### 🚪 1. Smart Security & Gate Management (Guard & Resident)
+- **Instant Gate Entry Requests**: Security guards initiate entry requests; residents receive immediate push notifications to approve or deny entry.
+- **Digital Guest Passes & QR Scanner**: Pre-approve visitors with auto-generated passcodes and native QR code scanning at the gate.
+- **Checkout Logs & Visitor History**: Real-time logging of visitor check-in/checkout timestamps.
+
+### 💰 2. Society Treasury & Dues Management
+- **Maintenance Dues**: Generate, view, and pay monthly maintenance dues with Razorpay payment gateway integration.
+- **Transparent Society Treasury**: Detailed ledger tracking of society budgets, logged expenses, block collections, and fixed deposit assets.
+- **Resident Read-Only View**: Complete financial transparency for residents to inspect society expenditure without write permissions.
+
+### 📣 3. Community Engagement & Helpdesk
+- **Notice Board**: Official society announcements with image attachments and categorization.
+- **Interactive Voting Polls**: Live community polls with real-time percentage results and admin poll closure options.
+- **Helpdesk Ticket System**: Track, assign, and resolve resident maintenance complaints (Plumbing, Electrical, General).
+
+### 📅 4. Amenities Scheduler & Parking Helper
+- **Facility Reservations**: Reserve clubhouses, tennis courts, and party halls with slot availability and admin verification.
+- **Vehicle & Parking Directory**: Track resident and visitor vehicles with slot allocation.
+
+### 🔄 5. Self-Hosted Over-the-Air (OTA) Updates
+- **Instant Bundle Delivery**: In-app runtime update engine that fetches hot fixes directly from the self-hosted production API server without requiring app store re-installation.
+
+---
+
+## 🏗️ Technology Stack
+
+| Layer | Technologies Used |
+| :--- | :--- |
+| **Mobile App (Frontend)** | React Native, Expo SDK 56, Expo Router, Tailwind CSS v4 (via Uniwind), HeroUI Native, Lucide/Ionicons |
+| **State & Data Fetching** | TanStack Query (React Query v5), Zustand |
+| **Backend API (Server)** | Hono Framework, Bun Runtime, TypeScript |
+| **Database & Auth** | PostgreSQL, Prisma ORM (v7), Better Auth (RBAC: Admin, Resident, Guard) |
+| **API Documentation** | Scalar OpenAPI Interactive Reference (`/reference`) |
+| **Media & Storage** | Cloudinary Cloud Storage |
+| **Deployment & CI/CD** | Docker, GitHub Actions (Self-hosted APK build & VPS deployment pipeline) |
+
+---
+
+## 📐 Project Structure
 
 ```text
 portl/
 ├── apps/
-└── package.json     # Root scripts for the generated graph
+│   ├── native/               # Mobile Application (Expo Router + React Native)
+│   ├── server/               # Backend API Server (Hono + Bun + Prisma)
+│   └── web/                  # Web Showcase Landing Page
+├── packages/
+│   ├── auth/                 # Shared Better Auth configuration & session schemas
+│   ├── db/                   # Prisma schema, migrations, and database client
+│   ├── env/                  # Zod-validated environment variables
+│   └── config/               # Shared TypeScript and ESLint configs
+└── .github/workflows/        # Automated APK build & VPS deploy workflow
 ```
 
-## Local Development
+---
 
-Install the JavaScript workspace dependencies first. If you created the project with `--no-install`, this step has not run yet.
+## 🚀 Quick Start & Development
 
-```sh
+### 1. Prerequisites
+- **Bun** runtime (v1.1+)
+- **Node.js** (v20+)
+- **PostgreSQL** database
+
+### 2. Installation & Database Setup
+```bash
+# Install workspace dependencies
 bun install
+
+# Set up environment variables
+cp apps/server/.env.example apps/server/.env
+cp apps/native/.env.example apps/native/.env
+
+# Sync database schema
+bun db:push
 ```
 
-Database-backed backend selections expect a local postgres database or a matching `DATABASE_URL` in the backend environment before you start the server. Copy the backend `.env.example` to `.env` and adjust it for your machine.
+### 3. Run Development Servers
+```bash
+# Terminal 1: Backend API Server
+bun dev:server
 
-Run the generated apps in separate terminals so each ecosystem keeps its native watcher and logs.
-
-```sh
+# Terminal 2: Expo Mobile App
 bun dev:native
 ```
 
-## Root Scripts
+---
 
-- `dev` starts the primary generated workspace for graph projects.
-- `dev:native` starts the React Native/Expo workspace.
+## 🌐 Live API & Documentation
+- **Interactive OpenAPI Reference**: [https://portl-api.ayushbhagat.com/reference](https://portl-api.ayushbhagat.com/reference)
+- **Direct APK Download**: [https://portl-api.ayushbhagat.com/uploads/portl.apk](https://portl-api.ayushbhagat.com/uploads/portl.apk)
 
-## Compatibility Notes
+---
 
-- TypeScript frontends can be generated with Elixir Phoenix backends; Phoenix runs on port 4000 and exposes `/api/health`.
-- Astro frontends can be generated with Rust backends; Rust web servers run on port 3000 and expose `/health`.
-- Cross-ecosystem graph projects share an HTTP boundary. Framework-specific API clients such as tRPC are not assumed across language boundaries; the scaffold wires the frontend to the backend base URL and health endpoint.
+## 📄 License
+Distributed under the MIT License. See `LICENSE` for details.
