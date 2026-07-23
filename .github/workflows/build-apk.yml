@@ -16,12 +16,25 @@ jobs:
   build-and-deploy:
     name: Build APK Locally on GitHub Runner & Deploy to VPS
     runs-on: ubuntu-latest
+    timeout-minutes: 25 # Safeguard GitHub Free Tier minutes (kill job if over 25m)
     env:
       DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
+      GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+UseG1GC' -Dorg.gradle.daemon=false"
+      JAVA_OPTS: "-Xmx4096m -XX:MaxMetaspaceSize=1024m"
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      - name: Allocate 10GB Swap Space
+        run: |
+          sudo swapoff -a || true
+          sudo rm -f /mnt/swapfile || true
+          sudo fallocate -l 10G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=10240
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          free -h
 
       - name: Setup Bun Environment
         uses: oven-sh/setup-bun@v1
@@ -30,6 +43,16 @@ jobs:
 
       - name: Install Workspace Dependencies
         run: bun install
+
+      - name: Cache Gradle Dependencies (Save Free Tier Minutes)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/package.json', '**/bun.lock', 'apps/native/android/build.gradle') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
       - name: Configure Native Environment Secrets & google-services.json
         env:
@@ -63,6 +86,16 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
+
+      - name: Configure Global Gradle Properties & Metaspace Limits
+        run: |
+          mkdir -p ~/.gradle
+          cat << 'EOF' > ~/.gradle/gradle.properties
+          org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+UseG1GC
+          org.gradle.daemon=false
+          org.gradle.parallel=true
+          org.gradle.caching=true
+          EOF
 
       - name: Write Pre-accepted Android SDK Licenses
         run: |

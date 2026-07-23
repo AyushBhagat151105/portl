@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "portl",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
     "runtimeVersion": {
       "policy": "appVersion"
     },
