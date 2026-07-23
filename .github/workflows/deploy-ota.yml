@@ -13,6 +13,10 @@ on:
       - 'apps/native/store/**'
   workflow_dispatch:
 
+concurrency:
+  group: ota-deploy
+  cancel-in-progress: true
+
 jobs:
   deploy-ota:
     name: Export JS Bundle & Deploy to VPS OTA Directory
@@ -46,23 +50,26 @@ jobs:
           echo "EXPO_PUBLIC_RAZORPAY_KEY_ID=${EXPO_PUBLIC_RAZORPAY_KEY_ID}" >> apps/native/.env
 
       - name: Export Expo JS Bundle & Manifest
+        env:
+          NODE_ENV: preview
         run: |
           cd apps/native
           npx expo export --output-dir ./dist
 
       - name: SCP OTA Bundle & Manifest to VPS
-        uses: appleboy/scp-action@master
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VPS_HOST }}
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
           source: "apps/native/dist/*"
           target: "/root/portl/apps/server/uploads/updates"
+          # strip_components: 3 strips leading 'apps/', 'native/', 'dist/' so exported bundle files land directly inside /uploads/updates/
           strip_components: 3
           rm: true
 
       - name: Inject OTA Bundle into Server Container
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
           username: root

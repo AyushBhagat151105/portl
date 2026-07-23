@@ -6,26 +6,25 @@ import { authMiddleware, roleMiddleware } from "../../../middleware/auth";
 const router = new Hono();
 
 router.use("/*", authMiddleware);
-router.use("/*", roleMiddleware(["admin"]));
 
-// Budgets
-router.get("/budgets", TreasuryController.getBudgets);
-router.post("/budgets", TreasuryController.createBudget);
+// Budgets — Read (Admin, Resident), Write (Admin only)
+router.get("/budgets", roleMiddleware(["admin", "resident", "owner"]), TreasuryController.getBudgets);
+router.post("/budgets", roleMiddleware(["admin", "owner"]), TreasuryController.createBudget);
 
-// Expenses
-router.get("/expenses", TreasuryController.getExpenses);
-router.post("/expenses", TreasuryController.createExpense);
+// Expenses — Read (Admin, Resident), Write (Admin only)
+router.get("/expenses", roleMiddleware(["admin", "resident", "owner"]), TreasuryController.getExpenses);
+router.post("/expenses", roleMiddleware(["admin", "owner"]), TreasuryController.createExpense);
 
-// Festivals
-router.get("/festivals", TreasuryController.getFestivals);
-router.post("/festivals", TreasuryController.createFestival);
+// Festivals — Read (Admin, Resident), Write (Admin only)
+router.get("/festivals", roleMiddleware(["admin", "resident", "owner"]), TreasuryController.getFestivals);
+router.post("/festivals", roleMiddleware(["admin", "owner"]), TreasuryController.createFestival);
 
-// Fixed Deposits
-router.get("/fds", FixedDepositController.getFixedDeposits);
-router.post("/fds", FixedDepositController.createFixedDeposit);
-router.delete("/fds/:id", FixedDepositController.deleteFixedDeposit);
+// Fixed Deposits — Read (Admin, Resident), Write (Admin only)
+router.get("/fds", roleMiddleware(["admin", "resident", "owner"]), FixedDepositController.getFixedDeposits);
+router.post("/fds", roleMiddleware(["admin", "owner"]), FixedDepositController.createFixedDeposit);
+router.delete("/fds/:id", roleMiddleware(["admin", "owner"]), FixedDepositController.deleteFixedDeposit);
 
-// Block Summaries Report
-router.get("/reports/blocks", TreasuryController.getBlockCollectionSummaries);
+// Block Summaries Report — Read (Admin, Resident)
+router.get("/reports/blocks", roleMiddleware(["admin", "resident", "owner"]), TreasuryController.getBlockCollectionSummaries);
 
 export default router;

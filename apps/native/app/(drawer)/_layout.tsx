@@ -17,6 +17,7 @@ export default function DrawerLayout() {
   const { isLight } = useAppTheme();
   const { data: session, isPending, refetch } = authClient.useSession();
   const [hasRefetched, setHasRefetched] = React.useState(false);
+  const [isVerifyingServerStatus, setIsVerifyingServerStatus] = React.useState(false);
 
   React.useEffect(() => {
     if (!isPending && !session) {
@@ -33,16 +34,6 @@ export default function DrawerLayout() {
     }
   }, [session, isPending, hasRefetched]);
 
-  if (isPending || !session) {
-    return (
-      <View style={{ flex: 1, backgroundColor: isLight ? "#fcfbf9" : "#1c1917" }} className="items-center justify-center">
-        <ActivityIndicator size="large" color="#f59e0b" />
-      </View>
-    );
-  }
-
-  const [isVerifyingServerStatus, setIsVerifyingServerStatus] = React.useState(false);
-
   React.useEffect(() => {
     if (session?.user && !session.user.emailVerified && !isVerifyingServerStatus) {
       setIsVerifyingServerStatus(true);
@@ -51,6 +42,14 @@ export default function DrawerLayout() {
         ?.finally(() => setIsVerifyingServerStatus(false));
     }
   }, [session?.user?.emailVerified]);
+
+  if (isPending || !session) {
+    return (
+      <View style={{ flex: 1, backgroundColor: isLight ? "#fcfbf9" : "#1c1917" }} className="items-center justify-center">
+        <ActivityIndicator size="large" color="#f59e0b" />
+      </View>
+    );
+  }
 
   // Email verification gate: Only redirect if session is not pending and email is confirmed false after refetch
   if (session?.user && !session.user.emailVerified && !isVerifyingServerStatus) {
@@ -188,6 +187,15 @@ export default function DrawerLayout() {
           drawerLabel: "Maintenance Payments",
           drawerItemStyle: getDrawerItemStyle(currentRole === "resident"),
           drawerIcon: ({ size, color }) => <Ionicons name="card-outline" size={size} color={color} />,
+        }}
+      />
+      <Drawer.Screen
+        name="resident/expenses"
+        options={{
+          headerTitle: "Society Expenses",
+          drawerLabel: "Society Expenses & Treasury",
+          drawerItemStyle: getDrawerItemStyle(currentRole === "resident"),
+          drawerIcon: ({ size, color }) => <Ionicons name="wallet-outline" size={size} color={color} />,
         }}
       />
 

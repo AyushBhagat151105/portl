@@ -41,7 +41,7 @@ function FormInputInner<T extends FieldValues>(
         {...inputProps}
       />
       {error?.message && (
-        <FieldError isInvalid className="text-rose-500 text-xs mt-1">
+        <FieldError isInvalid className="mt-1" classNames={{ text: "text-rose-500 dark:text-rose-400 text-xs font-medium" }}>
           {error.message}
         </FieldError>
       )}

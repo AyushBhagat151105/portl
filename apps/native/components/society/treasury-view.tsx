@@ -32,7 +32,7 @@ import { FdFormModal } from "./treasury/fd-form-modal";
 import { TreasurySummaryCards } from "./treasury/treasury-summary-cards";
 import { type CreateBudgetFormData, type CreateExpenseFormData, type CreateFestivalFormData } from "@/lib/form-schemas";
 
-export function TreasuryView() {
+export function TreasuryView({ readOnly = false }: { readOnly?: boolean }) {
   const { data: budgets = [], isLoading: budgetsLoading, refetch: refetchBudgets } = useBudgetsQuery();
   const { data: expenses = [], isLoading: expensesLoading, refetch: refetchExpenses } = useExpensesQuery();
   const { data: festivals = [], isLoading: festivalsLoading, refetch: refetchFestivals } = useFestivalsQuery();
@@ -265,9 +265,13 @@ export function TreasuryView() {
       {/* Header */}
       <View className="mb-6 flex-row justify-between items-center">
         <View className="flex-1 pr-4">
-          <Text className="text-foreground-light dark:text-foreground-dark text-xl font-bold">Treasury & Budgets</Text>
+          <Text className="text-foreground-light dark:text-foreground-dark text-xl font-bold">
+            {readOnly ? "Society Expenses & Treasury" : "Budget & Treasury"}
+          </Text>
           <Text className="text-muted-foreground-light dark:text-muted-foreground-dark text-xs mt-1">
-            Society trial balance sheets, cash inflow ledgers, and budgets
+            {readOnly
+              ? "View society balance sheets, expenses log, and budget allocations"
+              : "Society trial balance sheets, cash inflow ledgers, and budgets"}
           </Text>
         </View>
         <View className="flex-row items-center gap-3">
@@ -551,15 +555,17 @@ export function TreasuryView() {
           <SectionHeader
             title="Fixed Deposit Ledger"
             rightElement={
-              <Pressable
-                onPress={() => setFdModalVisible(true)}
-                className="bg-primary-light/10 dark:bg-primary-dark/10 px-3 py-1.5 rounded-lg flex-row items-center gap-1 active:opacity-75"
-                accessibilityRole="button"
-                accessibilityLabel="Log new FD asset"
-              >
-                <Ionicons name="add" size={14} color={primaryColor} />
-                <Text className="text-primary-light dark:text-primary-dark text-xs font-bold">Log FD Asset</Text>
-              </Pressable>
+              readOnly ? undefined : (
+                <Pressable
+                  onPress={() => setFdModalVisible(true)}
+                  className="bg-primary-light/10 dark:bg-primary-dark/10 px-3 py-1.5 rounded-lg flex-row items-center gap-1 active:opacity-75"
+                  accessibilityRole="button"
+                  accessibilityLabel="Log new FD asset"
+                >
+                  <Ionicons name="add" size={14} color={primaryColor} />
+                  <Text className="text-primary-light dark:text-primary-dark text-xs font-bold">Log FD Asset</Text>
+                </Pressable>
+              )
             }
           />
 
@@ -593,14 +599,16 @@ export function TreasuryView() {
                 </View>
                 <View className="flex-row items-center gap-4">
                   <Text className="text-foreground-light dark:text-white font-black text-sm font-mono">₹{f.amount.toLocaleString()}</Text>
-                  <Pressable
-                    onPress={() => handleDeleteFd(f.id)}
-                    className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 active:opacity-75"
-                    accessibilityRole="button"
-                    accessibilityLabel="Liquidate Fixed Deposit"
-                  >
-                    <Ionicons name="trash-outline" size={14} color="#ef4444" />
-                  </Pressable>
+                  {!readOnly && (
+                    <Pressable
+                      onPress={() => handleDeleteFd(f.id)}
+                      className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 active:opacity-75"
+                      accessibilityRole="button"
+                      accessibilityLabel="Liquidate Fixed Deposit"
+                    >
+                      <Ionicons name="trash-outline" size={14} color="#ef4444" />
+                    </Pressable>
+                  )}
                 </View>
               </Card>
             ))
@@ -616,15 +624,17 @@ export function TreasuryView() {
           <SectionHeader
             title="Active Budgets"
             rightElement={
-              <Pressable
-                onPress={() => setBudgetModalVisible(true)}
-                className="bg-primary-light/10 dark:bg-primary-dark/10 px-3 py-1.5 rounded-lg flex-row items-center gap-1 active:opacity-75"
-                accessibilityRole="button"
-                accessibilityLabel="Create new budget"
-              >
-                <Ionicons name="add" size={14} color={primaryColor} />
-                <Text className="text-primary-light dark:text-primary-dark text-xs font-bold">New Budget</Text>
-              </Pressable>
+              readOnly ? undefined : (
+                <Pressable
+                  onPress={() => setBudgetModalVisible(true)}
+                  className="bg-primary-light/10 dark:bg-primary-dark/10 px-3 py-1.5 rounded-lg flex-row items-center gap-1 active:opacity-75"
+                  accessibilityRole="button"
+                  accessibilityLabel="Create new budget"
+                >
+                  <Ionicons name="add" size={14} color={primaryColor} />
+                  <Text className="text-primary-light dark:text-primary-dark text-xs font-bold">New Budget</Text>
+                </Pressable>
+              )
             }
           />
 
@@ -682,15 +692,17 @@ export function TreasuryView() {
           <SectionHeader
             title="Expenses Log"
             rightElement={
-              <Pressable
-                onPress={() => setExpenseModalVisible(true)}
-                className="bg-primary-light/10 dark:bg-primary-dark/10 px-3 py-1.5 rounded-lg flex-row items-center gap-1 active:opacity-75"
-                accessibilityRole="button"
-                accessibilityLabel="Log new expense"
-              >
-                <Ionicons name="add" size={14} color={primaryColor} />
-                <Text className="text-primary-light dark:text-primary-dark text-xs font-bold">Log Expense</Text>
-              </Pressable>
+              readOnly ? undefined : (
+                <Pressable
+                  onPress={() => setExpenseModalVisible(true)}
+                  className="bg-primary-light/10 dark:bg-primary-dark/10 px-3 py-1.5 rounded-lg flex-row items-center gap-1 active:opacity-75"
+                  accessibilityRole="button"
+                  accessibilityLabel="Log new expense"
+                >
+                  <Ionicons name="add" size={14} color={primaryColor} />
+                  <Text className="text-primary-light dark:text-primary-dark text-xs font-bold">Log Expense</Text>
+                </Pressable>
+              )
             }
           />
 
@@ -739,39 +751,43 @@ export function TreasuryView() {
 
 
       {/* Form Modals */}
-      <BudgetFormModal
-        visible={budgetModalVisible}
-        onClose={() => setBudgetModalVisible(false)}
-        onSubmit={handleCreateBudget}
-        isSubmitting={createBudgetMutation.isPending}
-      />
+      {!readOnly && (
+        <>
+          <BudgetFormModal
+            visible={budgetModalVisible}
+            onClose={() => setBudgetModalVisible(false)}
+            onSubmit={handleCreateBudget}
+            isSubmitting={createBudgetMutation.isPending}
+          />
 
-      <ExpenseFormModal
-        visible={expenseModalVisible}
-        onClose={() => setExpenseModalVisible(false)}
-        onSubmit={handleCreateExpense}
-        isSubmitting={createExpenseMutation.isPending}
-        budgets={budgets}
-      />
+          <ExpenseFormModal
+            visible={expenseModalVisible}
+            onClose={() => setExpenseModalVisible(false)}
+            onSubmit={handleCreateExpense}
+            isSubmitting={createExpenseMutation.isPending}
+            budgets={budgets}
+          />
 
-      <FestivalFormModal
-        visible={festivalModalVisible}
-        onClose={() => setFestivalModalVisible(false)}
-        onSubmit={handleCreateFestival}
-        isSubmitting={createFestivalMutation.isPending}
-      />
+          <FestivalFormModal
+            visible={festivalModalVisible}
+            onClose={() => setFestivalModalVisible(false)}
+            onSubmit={handleCreateFestival}
+            isSubmitting={createFestivalMutation.isPending}
+          />
+
+          <FdFormModal
+            visible={fdModalVisible}
+            onClose={() => setFdModalVisible(false)}
+            onSubmit={handleCreateFd}
+          />
+        </>
+      )}
 
       <ExportModal
         visible={showExportModal}
         onClose={() => setShowExportModal(false)}
         onExport={handleTriggerExport}
         isExporting={isExporting}
-      />
-
-      <FdFormModal
-        visible={fdModalVisible}
-        onClose={() => setFdModalVisible(false)}
-        onSubmit={handleCreateFd}
       />
     </ScreenContainer>
   );

@@ -60,7 +60,7 @@ function SignIn({ isSubmittingRef }: SignInProps) {
         Sign In
       </Text>
 
-      <FieldError isInvalid={!!error} className="mb-3 text-rose-500">
+      <FieldError isInvalid={!!error} className="mb-3" classNames={{ text: "text-rose-500 dark:text-rose-400 text-xs font-semibold" }}>
         {error}
       </FieldError>
 
@@ -84,7 +84,7 @@ function SignIn({ isSubmittingRef }: SignInProps) {
                 className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl px-4 py-3 text-sm focus:border-primary-light dark:focus:border-primary-dark"
               />
               {fieldError && (
-                <FieldError isInvalid className="text-rose-500 text-xs mt-1">
+                <FieldError isInvalid className="mt-1" classNames={{ text: "text-rose-500 dark:text-rose-400 text-xs font-medium" }}>
                   {fieldError.message}
                 </FieldError>
               )}
@@ -111,7 +111,7 @@ function SignIn({ isSubmittingRef }: SignInProps) {
                 className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark text-foreground-light dark:text-foreground-dark rounded-xl px-4 py-3 text-sm focus:border-primary-light dark:focus:border-primary-dark"
               />
               {fieldError && (
-                <FieldError isInvalid className="text-rose-500 text-xs mt-1">
+                <FieldError isInvalid className="mt-1" classNames={{ text: "text-rose-500 dark:text-rose-400 text-xs font-medium" }}>
                   {fieldError.message}
                 </FieldError>
               )}

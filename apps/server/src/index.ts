@@ -51,6 +51,7 @@ app.route("/api", otaRouter);
 
 // Mount role-specific society routes
 app.route("/api/society/admin/treasury", treasuryRouter);
+app.route("/api/society/treasury", treasuryRouter);
 app.route("/api/society/admin", adminRouter);
 app.route("/api/society/guard", guardRouter);
 app.route("/api/society/resident", residentRouter);

@@ -8,6 +8,10 @@ on:
       - 'packages/**'
   workflow_dispatch:
 
+concurrency:
+  group: apk-build
+  cancel-in-progress: true
+
 jobs:
   build-and-deploy:
     name: Build APK Locally on GitHub Runner & Deploy to VPS
@@ -84,7 +88,7 @@ jobs:
           eas build --platform android --profile preview --local --output ./portl.apk
 
       - name: Upload APK to VPS Storage via SCP
-        uses: appleboy/scp-action@master
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VPS_HOST }}
           username: root
@@ -95,7 +99,7 @@ jobs:
           rm: true
 
       - name: Restart Server to Sync Metadata
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
           username: root
