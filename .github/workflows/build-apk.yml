@@ -16,7 +16,7 @@ jobs:
   build-and-deploy:
     name: Build APK Locally on GitHub Runner & Deploy to VPS
     runs-on: ubuntu-latest
-    timeout-minutes: 25 # Safeguard GitHub Free Tier minutes (kill job if over 25m)
+    timeout-minutes: 45 # Safeguard GitHub Free Tier minutes (allow up to 45m for full 27-30m builds)
     env:
       DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
       GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+UseG1GC' -Dorg.gradle.daemon=false"
