@@ -57,6 +57,9 @@ export function roleMiddleware(allowedRoles: string[]) {
     if (userRole === "owner") {
       userRoles.push("admin");
     }
+    if (userRole === "member") {
+      userRoles.push("resident");
+    }
 
     const hasRole = allowedRoles.some((role) => userRoles.includes(role.toLowerCase()));
 

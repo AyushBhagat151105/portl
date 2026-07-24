@@ -1,11 +1,11 @@
 import { create } from "zustand";
 
 interface SocietyStore {
-  currentRole: "resident" | "guard" | "admin";
+  currentRole: "resident" | "guard" | "admin" | null;
   activeGateCallVisitorId: string | null;
   visitorSearch: string;
   activeTab: string;
-  setRole: (role: "resident" | "guard" | "admin") => void;
+  setRole: (role: "resident" | "guard" | "admin" | null) => void;
   setActiveGateCallVisitorId: (id: string | null) => void;
   setVisitorSearch: (search: string) => void;
   setActiveTab: (tab: string) => void;
@@ -13,7 +13,7 @@ interface SocietyStore {
 }
 
 export const useSocietyStore = create<SocietyStore>((set) => ({
-  currentRole: "resident",
+  currentRole: null,
   activeGateCallVisitorId: null,
   visitorSearch: "",
   activeTab: "home",
@@ -21,6 +21,6 @@ export const useSocietyStore = create<SocietyStore>((set) => ({
   setActiveGateCallVisitorId: (activeGateCallVisitorId) => set({ activeGateCallVisitorId }),
   setVisitorSearch: (visitorSearch) => set({ visitorSearch }),
   setActiveTab: (activeTab) => set({ activeTab }),
-  reset: () => set({ currentRole: "resident", activeGateCallVisitorId: null, visitorSearch: "", activeTab: "home" }),
+  reset: () => set({ currentRole: null, activeGateCallVisitorId: null, visitorSearch: "", activeTab: "home" }),
 }));
 export default useSocietyStore;

@@ -8,24 +8,33 @@ export async function syncUserMembershipAndNavigate(
   setRole: (role: RoleType) => void
 ): Promise<boolean> {
   try {
-    const memberRes = await api.get("/api/society/my-membership");
+    let memberRes;
+    try {
+      memberRes = await api.get("/api/society/my-membership");
+    } catch {
+      // Retry once after brief delay if cookie/token was still hydrating right after sign-in
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      memberRes = await api.get("/api/society/my-membership");
+    }
+
     const membership = memberRes.data?.data;
 
     if (membership) {
       const serverRole = membership.role?.toLowerCase();
-      if (
-        serverRole === "admin" ||
-        serverRole === "owner" ||
-        serverRole === "resident" ||
-        serverRole === "guard"
-      ) {
-        const mappedRole: RoleType = serverRole === "owner" ? "admin" : (serverRole as RoleType);
-        setRole(mappedRole);
+      let mappedRole: RoleType = "resident";
+      if (serverRole === "admin" || serverRole === "owner") {
+        mappedRole = "admin";
+      } else if (serverRole === "guard") {
+        mappedRole = "guard";
+      } else {
+        mappedRole = "resident";
       }
 
-      if (serverRole === "admin" || serverRole === "owner") {
+      setRole(mappedRole);
+
+      if (mappedRole === "admin") {
         routerInstance.replace("/(drawer)/admin/dashboard");
-      } else if (serverRole === "guard") {
+      } else if (mappedRole === "guard") {
         routerInstance.replace("/(drawer)/guard/dashboard");
       } else {
         routerInstance.replace("/(drawer)/resident/dashboard");

@@ -101,9 +101,20 @@ export default function Index() {
 
   // ── Sync role into Zustand then redirect to role dashboard ─────
   const role = membership.role?.toLowerCase();
-  if (role === "admin" || role === "owner") {
+  const targetRole =
+    role === "admin" || role === "owner"
+      ? "admin"
+      : role === "guard"
+      ? "guard"
+      : "resident";
+
+  if (currentRole !== targetRole) {
+    setRole(targetRole);
+  }
+
+  if (targetRole === "admin") {
     return <Redirect href="/(drawer)/admin/dashboard" />;
-  } else if (role === "guard") {
+  } else if (targetRole === "guard") {
     return <Redirect href="/(drawer)/guard/dashboard" />;
   } else {
     return <Redirect href="/(drawer)/resident/dashboard" />;

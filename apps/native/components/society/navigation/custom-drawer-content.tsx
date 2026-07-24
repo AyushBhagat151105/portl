@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, Pressable, Image } from "react-native";
 import { DrawerContentScrollView, DrawerItemList } from "expo-router/drawer";
+import { useQueryClient } from "@tanstack/react-query";
 import { authClient } from "@/lib/auth-client";
 import { useSocietyStore } from "@/store/useSocietyStore";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -11,6 +12,19 @@ export function CustomDrawerContent(props: any) {
   const { data: session } = authClient.useSession();
   const { isLight } = useAppTheme();
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
+  const { reset: resetSocietyStore } = useSocietyStore();
+
+  const handleSignOut = async () => {
+    try {
+      await authClient.signOut();
+    } catch (err) {
+      console.error("Sign out error:", err);
+    } finally {
+      resetSocietyStore();
+      queryClient.clear();
+    }
+  };
 
   const initials = session?.user?.name
     ? session.user.name
@@ -62,7 +76,7 @@ export function CustomDrawerContent(props: any) {
       <View className="p-5 border-t border-border-light dark:border-border-dark bg-muted-light/10 dark:bg-muted-dark/10 flex-row justify-between items-center">
         <ThemeToggle />
         <Pressable
-          onPress={() => authClient.signOut()}
+          onPress={handleSignOut}
           className="bg-muted-light dark:bg-muted-dark border border-border-light dark:border-border-dark py-2 px-4 rounded-xl active:opacity-75"
           accessibilityRole="button"
           accessibilityLabel="Sign out of organization account"
